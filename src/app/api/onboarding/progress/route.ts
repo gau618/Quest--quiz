@@ -1,23 +1,24 @@
+// src/app/api/onboarding/progress/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth, AuthUser } from '@/lib/auth/withAuth';
-import { onboardingService } from '@/lib/services/onboarding.service';
+import { withAuth } from '@/lib/auth/withAuth';
 import { onboardingSchema } from '@/dtos/onboarding.dto';
+import { onboardingService } from '@/lib/services/onboarding.service';
 
-const handleOnboardingProgress = async (req: NextRequest, { user }: { user: AuthUser }) => {
-  const body = await req.json();
-  const validationResult = onboardingSchema.safeParse(body);
- // console.log('Validation Result:', validationResult); // Debugging line to check the validation result
-  if (!validationResult.success) {
-    return NextResponse.json({ message: 'Invalid input', errors: validationResult.error.errors }, { status: 400 });
-  }
-
+export const PUT = withAuth([], async (req, { user }) => {
   try {
-    const result = await onboardingService.updateOnboardingProgress(user.id, validationResult.data);
-    console.log('Onboarding Progress Update Result:', result); // Debugging line to check the result of the update
+    const body = await req.json();
+    const validation = onboardingSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json({ message: 'Invalid request body', errors: validation.error.errors }, { status: 400 });
+    }
+
+    const result = await onboardingService.updateProgress(user.id, validation.data);
+
     return NextResponse.json(result);
   } catch (error) {
+    console.error('[Onboarding Progress Error]', error);
     return NextResponse.json({ message: 'An internal server error occurred' }, { status: 500 });
   }
-};
-
-export const PUT = withAuth([], handleOnboardingProgress);
+});

@@ -1,3 +1,5 @@
+// src/lib/cloudinary/config.ts
+
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
@@ -10,11 +12,9 @@ cloudinary.config({
 export function generateCloudinarySignature(userId: string) {
   const timestamp = Math.round(new Date().getTime() / 1000);
   const folder = `quiz-app/avatars/${userId}`;
-
   const signature = cloudinary.utils.api_sign_request(
     { timestamp, folder },
     process.env.CLOUDINARY_API_SECRET!
   );
-
   return { timestamp, signature, folder };
 }

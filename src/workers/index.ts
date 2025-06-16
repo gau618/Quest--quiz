@@ -1,17 +1,25 @@
-import dotenv from 'dotenv';
-dotenv.config(); // This explicitly finds and loads the .env file
+// src/workers/index.ts
 
-import { createWorker } from '@/lib/queue/config';
+import 'dotenv/config';
+import { createWorker, queueService } from '@/lib/queue/config';
 import { processOnboardingBonus } from './onboarding.worker';
+import { processMatchmakingJob } from './matchmaking.worker';
+import { processTimeoutJob } from './matchmaking-timeout.worker';
 
-console.log('🚀 Worker process started, waiting for jobs on queue "onboarding-jobs"...');
+console.log('🚀 Worker process starting...');
 
-const onboardingWorker = createWorker('onboarding-jobs', processOnboardingBonus);
+createWorker('onboarding-jobs', processOnboardingBonus);
+createWorker('matchmaking-queue', processMatchmakingJob);
+createWorker('matchmaking-timeout-scheduler', processTimeoutJob);
 
-onboardingWorker.on('completed', (job) => {
-  console.log(`✅ Job ${job.id} has completed.`);
-});
-
-onboardingWorker.on('failed', (job, err) => {
-  console.error(`❌ Job ${job?.id} has failed with error: ${err.message}`);
-});
+const addRepeatableJob = async () => {
+  const queue = queueService.getQueue('matchmaking-timeout-scheduler');
+  await queue.add('timeout-check', null, {
+    repeat: { every: 5000 },
+    removeOnComplete: true,
+    removeOnFail: true,
+    jobId: 'singleton-timeout-check'
+  });
+  console.log('[Scheduler] Repeatable timeout check job configured.');
+};
+addRepeatableJob().catch(console.error);

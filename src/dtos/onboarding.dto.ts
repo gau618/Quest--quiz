@@ -1,16 +1,18 @@
+// src/dtos/onboarding.dto.ts
+
 import { z } from 'zod';
 import { ExperienceLevel } from '@prisma/client';
 
 const profileSetupSchema = z.object({
-  bio: z.string().max(500, 'Bio cannot exceed 500 characters').optional(),
+  bio: z.string().max(500).optional(),
   location: z.string().max(100).optional(),
-  website: z.string().url('Must be a valid URL').optional(),
-  avatarUrl: z.string().url('Invalid avatar URL').optional(),
+  website: z.string().url().optional(),
+  avatarUrl: z.string().url().optional(),
 });
 
 const experienceAssessmentSchema = z.object({
   experienceLevel: z.nativeEnum(ExperienceLevel),
-  interestAreas: z.array(z.string()).min(1, 'Select at least one interest area'),
+  interestAreas: z.array(z.string()).min(1),
 });
 
 const gamePreferencesSchema = z.object({
@@ -20,7 +22,7 @@ const gamePreferencesSchema = z.object({
 });
 
 const practiceGameSchema = z.object({
-  gameSessionId: z.string().cuid('Invalid game session ID'),
+  gameSessionId: z.string().cuid(),
   score: z.number().int(),
 });
 
@@ -30,3 +32,7 @@ export const onboardingSchema = z.discriminatedUnion('step', [
   z.object({ step: z.literal('gamePreferences'), data: gamePreferencesSchema }),
   z.object({ step: z.literal('practiceGame'), data: practiceGameSchema }),
 ]);
+
+export type OnboardingStep = z.infer<typeof onboardingSchema>['step'];
+export type OnboardingData = z.infer<typeof onboardingSchema>['data'];
+export type OnboardingInput = z.infer<typeof onboardingSchema>;

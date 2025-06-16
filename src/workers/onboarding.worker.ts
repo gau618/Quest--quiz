@@ -1,12 +1,10 @@
-import { PrismaClient } from '@prisma/client';
-import { Job } from 'bullmq';
+// src/workers/onboarding.worker.ts
 
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma/client';
+import { Job } from 'bullmq';
 
 export const processOnboardingBonus = async (job: Job) => {
   const { userId } = job.data;
-  console.log(`[Worker] Processing job ${job.id} for user: ${userId}`);
-
   try {
     const XP_BONUS = 100;
     const ACHIEVEMENT_TITLE = "Welcome Aboard!";
@@ -22,20 +20,15 @@ export const processOnboardingBonus = async (job: Job) => {
       });
 
       if (welcomeAchievement) {
-        // Use createMany with skipDuplicates to prevent errors if the user already has the achievement
         await tx.userAchievement.createMany({
           data: [{ userId, achievementId: welcomeAchievement.id }],
           skipDuplicates: true
         });
-      } else {
-        console.warn(`[Worker] Achievement '${ACHIEVEMENT_TITLE}' not found.`);
       }
     });
-    
-    console.log(`[Worker] TODO: Send welcome email to user ${userId}`);
-    console.log(`[Worker] Successfully processed bonus for user: ${userId}`);
+    // TODO: Send welcome email to user
   } catch (error) {
-    console.error(`[Worker] Failed to process job ${job.id} for user ${userId}:`, error);
+    console.error(`[Worker] Failed to process onboarding bonus for user ${userId}:`, error);
     throw error;
   }
 };

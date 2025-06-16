@@ -1,3 +1,5 @@
+// src/lib/auth/withAuth.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 
@@ -24,7 +26,6 @@ export function withAuth(allowedRoles: string[], handler: AuthenticatedRouteHand
     if (!token) {
       return NextResponse.json({ message: 'Token required.' }, { status: 403 });
     }
- //   console.log('Token:', token); // Debugging line to check the token value
     try {
       const response = await axios.get(`https://api.dev.tradeved.com/user/auth/get-user`, {
         headers: { Authorization: token },
@@ -33,16 +34,11 @@ export function withAuth(allowedRoles: string[], handler: AuthenticatedRouteHand
       if (!user) {
         return NextResponse.json({ message: 'User not found.' }, { status: 404 });
       }
-
-
-      // Use 'let' so we can modify the array
       let userRoles = user.userRole?.map(ur => ur?.role?.title).filter(Boolean) as string[] || [];
-
-      // Check if the array is empty after extraction
       if (userRoles.length === 0) {
         userRoles.push('USER');
       }
-
+      console.log(`[Auth] User ${user.username} (${user.id}) authenticated with roles: ${userRoles.join(', ')}`);
       return handler(req, { params, user });
     } catch (err: any) {
       if (err.response?.status === 401) {

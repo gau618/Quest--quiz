@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "worker": "tsx watch src/workers/index.ts"
+    "worker": "tsx watch src/workers/index.ts",
+    "socket": "tsx watch socket-server.ts" 
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",

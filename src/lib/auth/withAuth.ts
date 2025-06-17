@@ -31,6 +31,7 @@ export function withAuth(allowedRoles: string[], handler: AuthenticatedRouteHand
         headers: { Authorization: token },
       });
       const user: AuthUser = response.data.data;
+      console.log(user)
       if (!user) {
         return NextResponse.json({ message: 'User not found.' }, { status: 404 });
       }

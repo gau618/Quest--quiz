@@ -1,13 +1,14 @@
 // src/lib/redis/client.ts
 
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 
-const redisUrl = `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`;
-const globalForRedis = globalThis as unknown as { redis: Redis };
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
-export const redis =
-  globalForRedis.redis ?? new Redis(redisUrl, { maxRetriesPerRequest: null });
+// Standard client for general use (queues, caching)
+export const redis = new Redis(redisUrl);
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForRedis.redis = redis;
-}
+// A dedicated client for publishing messages
+export const redisPublisher = new Redis(redisUrl);
+
+// A dedicated client for subscribing to messages
+export const redisSubscriber = new Redis(redisUrl);

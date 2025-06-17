@@ -3,7 +3,7 @@
 import { redis } from '../redis/client';
 import { gameService } from './game.service';
 
-const ELO_RANGE = 50;
+const ELO_RANGE = 200;
 const TIMEOUT_SECONDS = 30;
 
 class MatchmakingService {

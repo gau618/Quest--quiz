@@ -1,5 +1,3 @@
-// src/app/api/onboarding/progress/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { onboardingSchema } from '@/dtos/onboarding.dto';
@@ -14,7 +12,13 @@ export const PUT = withAuth([], async (req, { user }) => {
       return NextResponse.json({ message: 'Invalid request body', errors: validation.error.errors }, { status: 400 });
     }
 
-    const result = await onboardingService.updateProgress(user.id, validation.data);
+    // Pass name and username from the microservice user object
+    const result = await onboardingService.updateProgress(
+      user.id,
+      validation.data,
+      user?.name,   
+      user?.username   
+    );
 
     return NextResponse.json(result);
   } catch (error) {

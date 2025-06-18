@@ -1,11 +1,10 @@
-// src/lib/auth/withAuth.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 
 export interface AuthUser {
   id: string;
   username: string;
+  name: string;      // <-- Ensure this is included!
   email: string;
   userRole: { role: { title: string } }[];
 }
@@ -40,7 +39,7 @@ export function withAuth(allowedRoles: string[], handler: AuthenticatedRouteHand
         userRoles.push('USER');
       }
       console.log(`[Auth] User ${user.username} (${user.id}) authenticated with roles: ${userRoles.join(', ')}`);
-      return handler(req, { params, user });
+      return handler(req, { params, user }); // <-- user object includes name/username
     } catch (err: any) {
       if (err.response?.status === 401) {
         return NextResponse.json({ message: 'Wrong authentication token.' }, { status: 401 });

@@ -267,7 +267,7 @@ export const QuickDuelGame = () => {
     <h3 style={styles.statusText}>Final Scores:</h3>
     {playersInGame.map(p => {
       const player = p.participantId;
-      const actualScores = scores.scores; // Fix here
+      let actualScores = scores.scores; // Fix here
       return (
         <p key={p.userId}>
           {p.username || p.userId.slice(0, 5)}: {actualScores[player] || 0}

@@ -1,49 +1,23 @@
 import 'dotenv/config';
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import { redis, redisSubscriber } from './src/lib/redis/client';
+import { redisSubscriber } from './src/lib/redis/client'; // Assuming redis, redisPublisher are also from here
 import { setupGracefulShutdown } from './src/lib/shutdown';
-import { gameService } from './src/lib/services/game.service';
-import prisma from './src/lib/prisma/client';
+import { gameService } from './src/lib/services/game.service'; // Ensure gameService is correctly imported
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
+// Maps to keep track of connections
 const userSocketMap = new Map<string, string>();
 const participantSocketMap = new Map<string, string>();
 
-async function sendNextQuestionToSocket(socket: Socket, sessionId: string, participantId: string) {
-  try {
-    const gameStateStr = await redis.get(`game_state:${sessionId}`);
-    if (!gameStateStr) {
-      console.warn(`[Socket.IO] No game state for session ${sessionId}`);
-      return;
-    }
-    const gameState = JSON.parse(gameStateStr);
-    if (Date.now() >= gameState.endTime) {
-      console.warn(`[Socket.IO] Game session ${sessionId} ended`);
-      return;
-    }
+// --- FIX: REMOVED the entire buggy sendNextQuestionToSocket function. ---
+// The game.service.ts now handles all question sending logic.
 
-    let questionsArr = gameState.questions[participantId] || [];
-    const question = questionsArr.shift();
-    gameState.questions[participantId] = questionsArr;
-    await redis.set(`game_state:${sessionId}`, JSON.stringify(gameState), 'KEEPTTL');
-
-    if (question) {
-      console.log(`[Socket.IO] Emitting question:new to participant ${participantId}:`, question);
-      socket.emit('question:new', question);
-    } else {
-      console.warn(`[Socket.IO] No more questions for participant ${participantId} in session ${sessionId}`);
-      socket.emit('game:end', { reason: 'No more questions' });
-    }
-  } catch (error) {
-    console.error(`[Socket.IO] Error sending next question:`, error);
-  }
-}
-
+// Listens for events from the game service worker via Redis
 redisSubscriber.subscribe('socket-events', (err) => {
   if (err) console.error('Failed to subscribe to socket-events channel', err);
   else console.log('[IPC] Subscribed to socket-events channel.');
@@ -57,91 +31,54 @@ redisSubscriber.on('message', (channel, message) => {
       case 'user':
         ids.forEach((userId: string) => {
           const socketId = userSocketMap.get(userId);
-          if (socketId) {
-            io.to(socketId).emit(event, payload);
-            console.log(`[IPC] Emitted event "${event}" to user ${userId}`);
-          } else {
-            console.warn(`[IPC] No socket for user ${userId}`);
-          }
+          if (socketId) io.to(socketId).emit(event, payload);
         });
         break;
       case 'room':
-        ids.forEach((room: string) => {
-          io.to(room).emit(event, payload);
-          console.log(`[IPC] Emitted event "${event}" to room ${room}`);
-        });
+        ids.forEach((room: string) => io.to(room).emit(event, payload));
         break;
       case 'participant':
         ids.forEach((participantId: string) => {
           const socketId = participantSocketMap.get(participantId);
-          if (socketId) {
-            io.to(socketId).emit(event, payload);
-            console.log(`[IPC] Emitted event "${event}" to participant ${participantId}`);
-          } else {
-            console.warn(`[IPC] No socket for participant ${participantId}`);
-          }
+          if (socketId) io.to(socketId).emit(event, payload);
         });
         break;
-      default:
-        console.warn('[IPC] Unknown target:', target, ids, event);
     }
   } catch (error) {
     console.error('[IPC] Error processing message from Redis:', error);
   }
 });
 
+// Handles new socket connections
 io.on('connection', (socket: Socket) => {
   const { userId } = socket.handshake.query;
   if (typeof userId === 'string') {
     userSocketMap.set(userId, socket.id);
     console.log(`[Socket.IO] User ${userId} connected with socket ${socket.id}`);
-  } else {
-    console.warn('[Socket.IO] No userId provided in handshake query');
   }
 
   socket.on('game:register-participant', (data: { participantId: string }) => {
     if (data.participantId) {
       participantSocketMap.set(data.participantId, socket.id);
       console.log(`[Socket.IO] Registered participant ${data.participantId} to socket ${socket.id}`);
-    } else {
-      console.warn('[Socket.IO] No participantId provided in game:register-participant');
     }
   });
 
-  socket.on('game:join', (data) => {
-    if (!data.sessionId || !data.participantId) {
-      console.warn('[Socket.IO] Missing sessionId or participantId in game:join', data);
-      return;
-    }
+  // --- FIX: The 'game:join' handler now ONLY joins the room. ---
+  // It no longer contains game logic. The game.service.ts already started the game.
+  socket.on('game:join', (data: { sessionId: string; participantId: string }) => {
+    if (!data.sessionId || !data.participantId) return;
     socket.join(data.sessionId);
-    console.log(`[Socket.IO] Socket ${socket.id} joined session ${data.sessionId} as participant ${data.participantId}`);
-    sendNextQuestionToSocket(socket, data.sessionId, data.participantId);
+    console.log(`[Socket.IO] Socket ${socket.id} joined session ${data.sessionId}`);
   });
 
-  socket.on('answer:submit', async (data: { sessionId: string; participantId: string; questionId: string; optionId: string }) => {
-    try {
-      if (!data.sessionId || !data.participantId || !data.questionId || !data.optionId) {
-        console.warn('[Socket.IO] Incomplete data in answer:submit', data);
-        return;
-      }
-      console.log('[Socket.IO] Received answer:submit', data);
-      await gameService.handleAnswer(data.sessionId, data.participantId, data.questionId, data.optionId);
-    } catch (err) {
-      console.error('[Socket.IO] Error in answer:submit:', err);
-    }
+  // Forwards user actions to the game service worker
+  socket.on('answer:submit', (data: { sessionId: string; participantId: string; questionId: string; optionId: string }) => {
+    gameService.handleAnswer(data.sessionId, data.participantId, data.questionId, data.optionId);
   });
 
-  socket.on('question:skip', async (data: { sessionId: string; participantId: string }) => {
-    try {
-      if (!data.sessionId || !data.participantId) {
-        console.warn('[Socket.IO] Incomplete data in question:skip', data);
-        return;
-      }
-      console.log('[Socket.IO] Received question:skip', data);
-      await gameService.handleSkip(data.sessionId, data.participantId);
-    } catch (err) {
-      console.error('[Socket.IO] Error in question:skip:', err);
-    }
+  socket.on('question:skip', (data: { sessionId: string; participantId: string }) => {
+    gameService.handleSkip(data.sessionId, data.participantId);
   });
 
   socket.on('disconnect', () => {

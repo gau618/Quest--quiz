@@ -1,5 +1,3 @@
-// src/lib/services/onboarding.service.ts
-
 import prisma from '../prisma/client';
 import { queueService } from '../queue/config';
 import { OnboardingInput } from '@/dtos/onboarding.dto';
@@ -10,20 +8,33 @@ interface OnboardingState {
 }
 
 class OnboardingService {
-  private async getOrCreateProfile(userId: string) {
-    const profile = await prisma.userProfile.findUnique({ where: { userId } });
-    if (profile) return profile;
+  // Accept name and username from microservice and always use them
+  private async getOrCreateProfile(userId: string, name?: string, username?: string) {
+    let profile = await prisma.userProfile.findUnique({ where: { userId } });
+    if (profile) {
+      // Update name/username if changed in microservice
+      if (profile.name !== name || profile.username !== username) {
+        profile = await prisma.userProfile.update({
+          where: { userId },
+          data: { name, username }, // <-- UPDATED: always sync name/username
+        });
+      }
+      return profile;
+    }
     return prisma.userProfile.create({
       data: {
         userId,
+        name,       // <-- UPDATED: set name from microservice
+        username,   // <-- UPDATED: set username from microservice
         onboardingState: { stepsCompleted: {} },
       },
     });
   }
 
-  public async updateProgress(userId: string, validatedData: OnboardingInput) {
+  // Accept name and username, always pass from API route
+  public async updateProgress(userId: string, validatedData: OnboardingInput, name?: string, username?: string) {
     const { step, data } = validatedData;
-    const userProfile = await this.getOrCreateProfile(userId);
+    const userProfile = await this.getOrCreateProfile(userId, name, username); // <-- UPDATED: pass name/username
     console.log(userProfile);
     const updatedProfile = await prisma.$transaction(async (tx) => {
       let updateData: any = {};
@@ -32,6 +43,9 @@ class OnboardingService {
         case 'profileSetup':
         case 'experienceAssessment':
           updateData = data;
+          // Always update name/username from microservice
+          updateData.name = name;         // <-- UPDATED: always set name
+          updateData.username = username; // <-- UPDATED: always set username
           break;
         case 'gamePreferences':
           updateData.notificationSettings = data.notificationPreferences;

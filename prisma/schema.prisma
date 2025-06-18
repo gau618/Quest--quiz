@@ -90,6 +90,8 @@ model UserProfile {
   bio                  String?   @db.Text
   avatarUrl            String?
   location             String?
+  name                 String?  
+  username             String?  
   website              String?
   experienceLevel      ExperienceLevel @default(BEGINNER)
   xp                   Int       @default(0)
@@ -186,6 +188,7 @@ model Question {
   category    Category      @relation(fields: [categoryId], references: [id])
   options     Option[]
   answers     GameAnswer[]
+  createdAt   DateTime      @default(now()) // <-- Add this line
 }
 
 model Option {

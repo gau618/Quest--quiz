@@ -4,24 +4,27 @@ import { socketService } from '../websocket/socket.service';
 import { redis } from '../redis/client';
 import { calculateElo } from '../game/elo';
 
-const QUESTIONS_PER_BATCH = 20;
+const QUESTIONS_PER_BATCH = 20; // Set to 20 as per your initial context
 
+// Defines the structure of a question object
 interface Question {
   id: string;
   text: string;
   options: { id: string; text: string }[];
   correctOptionId: string;
+  createdAt?: Date;
 }
 
+// FIX: GameState now holds a single shared questions array and per-user progress
 interface GameState {
-  questions: Record<string, Question[]>;
+  questions: Question[]; // A single, shared array of questions for the session
+  userProgress: Record<string, number>; // Tracks each user's current index in the questions array
   scores: Record<string, number>;
   difficulty: Difficulty;
   endTime: number;
 }
 
-// No shuffle function needed
-
+// Bot logic remains unchanged
 function getBotAccuracy(elo: number): number {
   const minElo = 600;
   const maxElo = 2800;
@@ -35,8 +38,8 @@ function getBotAccuracy(elo: number): number {
 function getBotDelay(elo: number): number {
   const minElo = 600;
   const maxElo = 2800;
-  const maxDelay = 4000; // ms
-  const minDelay = 1000; // ms
+  const maxDelay = 4000;
+  const minDelay = 1000;
   if (elo <= minElo) return maxDelay;
   if (elo >= maxElo) return minDelay;
   return maxDelay - ((elo - minElo) / (maxElo - minElo)) * (maxDelay - minDelay);
@@ -49,69 +52,89 @@ class GameService {
     return Difficulty.HARD;
   };
 
+  // Fetches and sorts questions deterministically
+  // Fetches a random but deterministically ordered batch of questions
   private fetchQuestions = async (difficulty: Difficulty, count: number): Promise<Question[]> => {
-    const total = await prisma.question.count({ where: { difficulty } });
+    // 1. Get the total number of questions for the given difficulty
+    const total = await prisma.question.count({
+      where: { difficulty },
+    });
+
+    // 2. Calculate a random starting point (skip)
+    // This ensures that if we have more questions than we need, we start from a random place.
     const skip = total > count ? Math.floor(Math.random() * (total - count)) : 0;
+    
+    console.log(`[fetchQuestions] Fetching ${count} questions for difficulty: ${difficulty}, skipping ${skip} out of ${total}`);
+
+    // 3. Fetch the questions using the random skip but with deterministic ordering
     const rawQuestions = await prisma.question.findMany({
       where: { difficulty },
       take: count,
-      skip,
-      orderBy: { id: 'asc' }, // Ensure consistent order
-      select: { id: true, text: true, options: { select: { id: true, text: true, isCorrect: true } } },
+      skip: skip, // Use the calculated random skip
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], // This is still crucial for deterministic order
+      select: {
+        id: true,
+        text: true,
+        createdAt: true,
+        options: { select: { id: true, text: true, isCorrect: true } },
+      },
     });
+
     return rawQuestions.map(q => ({
       ...q,
       correctOptionId: q.options.find(opt => opt.isCorrect)!.id,
-      options: q.options.map(({ isCorrect, ...rest }) => rest)
+      options: q.options.map(({ isCorrect, ...rest }) => rest),
     }));
   };
 
+
   private async createSession(playerIds: string[], botCount: number, duration: number, difficulty: Difficulty) {
+    // Bot creation logic
     const botUserIds: string[] = [];
     if (botCount > 0) {
       for (let i = 0; i < botCount; i++) {
         const botId = `BOT_${Date.now()}_${i}`;
         botUserIds.push(botId);
         await prisma.userProfile.create({
-          data: {
-            userId: botId,
-            eloRating: 1200,
-            onboardingState: {},
-          },
+          data: { userId: botId, eloRating: 1200, onboardingState: {} },
         });
       }
     }
 
+    // Session creation logic
     const allParticipantIds = [...playerIds, ...botUserIds];
     const session = await prisma.gameSession.create({
       data: {
         mode: GameMode.QUICK_DUEL,
         status: GameStatus.ACTIVE,
         participants: {
-          create: allParticipantIds.map(id => ({
-            userId: id,
-            isBot: id.startsWith('BOT_'),
-          })),
+          create: allParticipantIds.map(id => ({ userId: id, isBot: id.startsWith('BOT_') })),
         },
       },
       include: { participants: { include: { userProfile: true } } },
     });
 
-    // Fetch questions ONCE, assign the same sequence to all participants
-    const baseQuestions = await this.fetchQuestions(difficulty, QUESTIONS_PER_BATCH);
-    const questions: Record<string, Question[]> = {};
+    // --- FIX: Fetch questions ONCE and store as a single array ---
+    const questions = await this.fetchQuestions(difficulty, QUESTIONS_PER_BATCH);
+
+    // --- FIX: Initialize progress for each participant to the start (index 0) ---
+    const userProgress: Record<string, number> = {};
     for (const participant of session.participants) {
-      questions[participant.id] = [...baseQuestions];
+      userProgress[participant.id] = 0;
     }
 
+    // Create the game state with the shared questions array and per-user progress
     const gameState: GameState = {
       questions,
+      userProgress,
       scores: session.participants.reduce((acc, p) => ({ ...acc, [p.id]: 0 }), {}),
       difficulty,
       endTime: Date.now() + duration * 60 * 1000,
     };
+
     await redis.set(`game_state:${session.id}`, JSON.stringify(gameState), 'EX', duration * 60 + 30);
 
+    // Notify users that the match is found
     socketService.emitToUsers(session.participants.filter(p => !p.isBot).map(p => p.userId), 'match:found', {
       sessionId: session.id, duration, difficulty,
       players: session.participants.map(p => ({
@@ -119,15 +142,13 @@ class GameService {
         userId: p.userId,
         username: p.isBot ? `Bot ${Math.floor(Math.random() * 1000)}` : p.userProfile?.username,
         avatarUrl: p.userProfile?.avatarUrl,
-        elo: p.userProfile?.eloRating
-      }))
+        elo: p.userProfile?.eloRating,
+      })),
     });
 
-    // Start bot(s) gameplay loop
+    // --- FIX: Start the game for ALL participants by sending them the first question ---
     for (const participant of session.participants) {
-      if (participant.isBot) {
-        this.sendNextQuestion(session.id, participant.id);
-      }
+      this.sendNextQuestion(session.id, participant.id);
     }
 
     setTimeout(() => this.endGame(session.id), duration * 60 * 1000);
@@ -144,91 +165,74 @@ class GameService {
     await this.createSession([playerId], 1, duration, this.getDifficultyFromElo(profile.eloRating));
   }
 
+  // --- FIX: Serves the next question based on the user's progress index ---
   public async sendNextQuestion(sessionId: string, participantId: string) {
     const gameStateStr = await redis.get(`game_state:${sessionId}`);
-    if (!gameStateStr) {
-      console.warn(`[GameService] No game state for session ${sessionId}`);
-      return;
-    }
+    if (!gameStateStr) return;
     const gameState: GameState = JSON.parse(gameStateStr);
 
-    if (Date.now() >= gameState.endTime) {
-      console.warn(`[GameService] Game session ${sessionId} ended`);
-      return;
-    }
+    if (Date.now() >= gameState.endTime) return;
 
-    let questionsArr = gameState.questions[participantId] || [];
-    let question = questionsArr.shift();
-
-    if (!question) {
-      // Fetch more questions in the same order if needed
-      questionsArr = await this.fetchQuestions(gameState.difficulty, QUESTIONS_PER_BATCH);
-      question = questionsArr.shift();
-    }
-    gameState.questions[participantId] = questionsArr;
-
-    await redis.set(`game_state:${sessionId}`, JSON.stringify(gameState), 'KEEPTTL');
+    // Get the user's current question index
+    const idx = gameState.userProgress[participantId] ?? 0;
+    // Get the question from the shared array
+    const question = gameState.questions[idx];
 
     if (question) {
       const participant = await prisma.gameParticipant.findUnique({ where: { id: participantId } });
       if (participant?.isBot) {
         this._simulateBotAnswer(sessionId, participantId, question);
       } else {
-        console.log(`[GameService] Emitting question:new to participant ${participantId}:`, question);
         socketService.emitToParticipant(participantId, 'question:new', question);
       }
     } else {
-      console.warn(`[GameService] No more questions for participant ${participantId} in session ${sessionId}`);
+      // If no question exists at that index, the user has finished
       socketService.emitToParticipant(participantId, 'game:end', { reason: 'No more questions' });
     }
   }
 
+  // --- FIX: Handles an answer and increments the user's progress ---
   public async handleAnswer(sessionId: string, participantId: string, questionId: string, chosenOptionId: string) {
     const gameStateStr = await redis.get(`game_state:${sessionId}`);
-    if (!gameStateStr) {
-      console.warn(`[GameService] No game state for session ${sessionId} in handleAnswer`);
-      return;
-    }
-    const gameState: GameState = JSON.parse(gameStateStr);
+    if (!gameStateStr) return;
+    let gameState: GameState = JSON.parse(gameStateStr);
     const question = await prisma.question.findUnique({ where: { id: questionId }, include: { options: true } });
-    if (!question) {
-      console.warn(`[GameService] No question found for ID ${questionId}`);
-      return;
-    }
+    if (!question) return;
 
-    if (question.options.find(o => o.isCorrect)?.id === chosenOptionId) {
+    const correctOption = question.options.find(o => o.isCorrect)?.id;
+    if (correctOption === chosenOptionId) {
       gameState.scores[participantId] = (gameState.scores[participantId] || 0) + 10;
-      await redis.set(`game_state:${sessionId}`, JSON.stringify(gameState), 'KEEPTTL');
       socketService.emitToRoom(sessionId, 'score:update', gameState.scores);
     }
 
-    // Advance the participant's questions array
-    let questionsArr = gameState.questions[participantId] || [];
-    questionsArr.shift(); // Remove the answered question
-    gameState.questions[participantId] = questionsArr;
+    // Increment only this user's progress index. Do not mutate the array.
+    gameState.userProgress[participantId] = (gameState.userProgress[participantId] ?? 0) + 1;
     await redis.set(`game_state:${sessionId}`, JSON.stringify(gameState), 'KEEPTTL');
 
-    // Send the next question
     await this.sendNextQuestion(sessionId, participantId);
   }
 
+  // --- FIX: Handles a skip and increments the user's progress ---
   public async handleSkip(sessionId: string, participantId: string) {
+    const gameStateStr = await redis.get(`game_state:${sessionId}`);
+    if (!gameStateStr) return;
+    let gameState: GameState = JSON.parse(gameStateStr);
+
+    // Increment only this user's progress index. Do not mutate the array.
+    gameState.userProgress[participantId] = (gameState.userProgress[participantId] ?? 0) + 1;
+    await redis.set(`game_state:${sessionId}`, JSON.stringify(gameState), 'KEEPTTL');
+
     await this.sendNextQuestion(sessionId, participantId);
   }
 
+  // Bot logic unchanged
   private async _simulateBotAnswer(sessionId: string, botParticipantId: string, question: Question) {
     try {
-      const participant = await prisma.gameParticipant.findUnique({
-        where: { id: botParticipantId },
-        include: { userProfile: true }
-      });
+      const participant = await prisma.gameParticipant.findUnique({ where: { id: botParticipantId }, include: { userProfile: true } });
       const elo = participant?.userProfile?.eloRating ?? 1200;
-
       const accuracy = getBotAccuracy(elo);
       const delay = getBotDelay(elo);
-
       const answersCorrectly = Math.random() < accuracy;
-
       let chosenOptionId: string;
       if (answersCorrectly) {
         chosenOptionId = question.correctOptionId;
@@ -236,9 +240,6 @@ class GameService {
         const incorrectOptions = question.options.filter(o => o.id !== question.correctOptionId);
         chosenOptionId = incorrectOptions[Math.floor(Math.random() * incorrectOptions.length)].id;
       }
-
-      console.log(`[BotAI] Bot ${botParticipantId} (ELO ${elo}, accuracy ${(accuracy * 100).toFixed(1)}%) will answer ${answersCorrectly ? 'correctly' : 'incorrectly'} after ${delay.toFixed(0)}ms`);
-
       setTimeout(() => {
         this.handleAnswer(sessionId, botParticipantId, question.id, chosenOptionId);
       }, delay);
@@ -247,24 +248,16 @@ class GameService {
     }
   }
 
+  // Game end logic unchanged
   public async endGame(sessionId: string) {
     const gameStateStr = await redis.get(`game_state:${sessionId}`);
     if (!gameStateStr) return;
     await redis.del(`game_state:${sessionId}`);
     const gameState: GameState = JSON.parse(gameStateStr);
-
-    await prisma.$transaction(async (tx) => {
-      const session = await tx.gameSession.update({
-        where: { id: sessionId },
-        data: { status: GameStatus.FINISHED },
-        include: { participants: { include: { userProfile: true } } },
-      });
-
+    await prisma.$transaction(async tx => {
+      const session = await tx.gameSession.update({ where: { id: sessionId }, data: { status: GameStatus.FINISHED }, include: { participants: { include: { userProfile: true } } } });
       for (const participant of session.participants) {
-        await tx.gameParticipant.update({
-          where: { id: participant.id },
-          data: { score: gameState.scores[participant.id] || 0 },
-        });
+        await tx.gameParticipant.update({ where: { id: participant.id }, data: { score: gameState.scores[participant.id] || 0 } });
       }
       const humanPlayers = session.participants.filter(p => !p.isBot);
       if (humanPlayers.length === 2) {
@@ -273,13 +266,12 @@ class GameService {
         const [newP1Elo, newP2Elo] = calculateElo(
           p1.userProfile!.eloRating,
           p2.userProfile!.eloRating,
-          (gameState.scores[p1.id] > gameState.scores[p2.id] ? 1 : 0.5)
+          gameState.scores[p1.id] > gameState.scores[p2.id] ? 1 : 0.5
         );
         await tx.userProfile.update({ where: { userId: p1.userId }, data: { eloRating: newP1Elo } });
         await tx.userProfile.update({ where: { userId: p2.userId }, data: { eloRating: newP2Elo } });
       }
     });
-
     socketService.emitToRoom(sessionId, 'game:end', { scores: gameState.scores });
   }
 }

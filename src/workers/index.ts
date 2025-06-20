@@ -1,25 +1,19 @@
 // src/workers/index.ts
 
+// Load environment variables early in the worker process
 import 'dotenv/config';
-import { createWorker, queueService } from '@/lib/queue/config';
-import { processOnboardingBonus } from './onboarding.worker';
-import { processMatchmakingJob } from './matchmaking.worker';
-import { processTimeoutJob } from './matchmaking-timeout.worker';
 
-console.log('🚀 Worker process starting...');
+// Import each worker module.
+// When these modules are imported, their top-level code executes,
+// which includes the `createWorker` calls within each file.
+// This effectively starts each BullMQ worker and schedules any repeatable jobs
+// (like the matchmaking timeout check) that are defined within them.
+import './onboarding.worker';
+import './matchmaking.worker';
+import './matchmaking-timeout.worker';
 
-createWorker('onboarding-jobs', processOnboardingBonus);
-createWorker('matchmaking-queue', processMatchmakingJob);
-createWorker('matchmaking-timeout-scheduler', processTimeoutJob);
+console.log('🚀 All BullMQ worker processes initialized and started.');
 
-const addRepeatableJob = async () => {
-  const queue = queueService.getQueue('matchmaking-timeout-scheduler');
-  await queue.add('timeout-check', null, {
-    repeat: { every: 5000 },
-    removeOnComplete: true,
-    removeOnFail: true,
-    jobId: 'singleton-timeout-check'
-  });
-  console.log('[Scheduler] Repeatable timeout check job configured.');
-};
-addRepeatableJob().catch(console.error);
+// No further code is needed here.
+// The individual worker files are responsible for their own setup,
+// processing logic, and error handling.

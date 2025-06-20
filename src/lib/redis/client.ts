@@ -1,14 +1,24 @@
 // src/lib/redis/client.ts
+import Redis from 'ioredis';
 
-import { Redis } from 'ioredis';
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+// Main Redis client for general operations
+const redis = new Redis(REDIS_URL);
+// Separate Redis client for publishing messages (BullMQ uses its own for internal pub/sub)
+const redisPublisher = new Redis(REDIS_URL);
+// Separate Redis client for subscribing to messages (BullMQ also uses its own)
+const redisSubscriber = new Redis(REDIS_URL);
 
-// Standard client for general use (queues, caching)
-export const redis = new Redis(redisUrl);
+// Add event listeners for connection status to all Redis clients
+redis.on('connect', () => console.log('✅ Redis connected: General Client'));
+redis.on('error', (err) => console.error('❌ Redis error: General Client', err));
 
-// A dedicated client for publishing messages
-export const redisPublisher = new Redis(redisUrl);
+redisPublisher.on('connect', () => console.log('✅ Redis connected: Publisher Client'));
+redisPublisher.on('error', (err) => console.error('❌ Redis error: Publisher Client', err));
 
-// A dedicated client for subscribing to messages
-export const redisSubscriber = new Redis(redisUrl);
+redisSubscriber.on('connect', () => console.log('✅ Redis connected: Subscriber Client'));
+redisSubscriber.on('error', (err) => console.error('❌ Redis error: Subscriber Client', err));
+
+
+export { redis, redisPublisher, redisSubscriber };

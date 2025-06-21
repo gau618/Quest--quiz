@@ -7,12 +7,14 @@ export interface Question {
   options: { id: string; text: string }[];
   correctOptionId: string;
 }
+
 export interface AnswerData {
   questionId: string;
   timeTaken: number;
   action: "answered" | "skipped" | "timeout";
   correct?: boolean;
 }
+
 export interface FastestFingerAnswer {
   participantId: string;
   optionId: string;

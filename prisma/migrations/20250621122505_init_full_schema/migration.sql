@@ -2,7 +2,7 @@
 CREATE TYPE "ExperienceLevel" AS ENUM ('BEGINNER', 'INTERMEDIATE', 'ADVANCED');
 
 -- CreateEnum
-CREATE TYPE "GameMode" AS ENUM ('QUICK_DUEL', 'PRACTICE', 'TIME_ATTACK', 'GROUP_PLAY', 'FASTEST_FINGER_FIRST_FIRST');
+CREATE TYPE "GameMode" AS ENUM ('QUICK_DUEL', 'PRACTICE', 'TIME_ATTACK', 'GROUP_PLAY', 'FASTEST_FINGER_FIRST');
 
 -- CreateEnum
 CREATE TYPE "GameStatus" AS ENUM ('WAITING', 'ACTIVE', 'FINISHED', 'CANCELLED');
@@ -32,6 +32,8 @@ CREATE TABLE "UserProfile" (
     "bio" TEXT,
     "avatarUrl" TEXT,
     "location" TEXT,
+    "name" TEXT,
+    "username" TEXT,
     "website" TEXT,
     "experienceLevel" "ExperienceLevel" NOT NULL DEFAULT 'BEGINNER',
     "xp" INTEGER NOT NULL DEFAULT 0,
@@ -109,6 +111,8 @@ CREATE TABLE "Question" (
     "status" "ContentStatus" NOT NULL DEFAULT 'DRAFT',
     "tags" TEXT[],
     "categoryId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "learningTip" TEXT,
 
     CONSTRAINT "Question_pkey" PRIMARY KEY ("id")
 );

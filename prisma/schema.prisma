@@ -189,6 +189,7 @@ model Question {
   options     Option[]
   answers     GameAnswer[]
   createdAt   DateTime      @default(now()) // <-- Add this line
+  learningTip     String?   // <-- ADD THIS FIELD for learning tips
 }
 
 model Option {

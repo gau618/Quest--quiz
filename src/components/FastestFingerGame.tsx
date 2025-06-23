@@ -8,8 +8,8 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-// --- TYPE DEFINITIONS ---
 type FFGameStatus = 'idle' | 'searching' | 'waiting' | 'playing' | 'answered' | 'finished';
+
 interface Player { participantId: string; userId: string; username?: string; avatarUrl?: string; }
 interface Question { id: string; text: string; options: { id: string; text: string }[]; }
 interface AnswerData { questionId: string; timeTaken: number; action: 'answered' | 'skipped' | 'timeout'; correct?: boolean; }
@@ -17,7 +17,6 @@ interface Results { [participantId: string]: AnswerData[]; }
 
 const SOCKET_SERVER_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
 
-// --- HELPER COMPONENT: RESULTS GRAPH ---
 const ResultsGraph = ({ results, players, myUserId }: { results: Results, players: Player[], myUserId: string }) => {
   const chartData = useMemo(() => {
     const me = players.find(p => p.userId === myUserId);
@@ -81,11 +80,9 @@ const ResultsGraph = ({ results, players, myUserId }: { results: Results, player
     scales: { y: { beginAtZero: true, title: { display: true, text: 'Time (s) / Status (Incorrect=22, Timeout=25)' } } }
   };
 
-  return <Line options={chartOptions} data={chartData} />;
+  return <div style={{ position: 'relative', height: '300px', marginTop: '30px' }}><Line options={chartOptions} data={chartData} /></div>;
 };
 
-
-// --- MAIN GAME COMPONENT ---
 export const FastestFingerGame = () => {
   const [userId, setUserId] = useState('');
   const [jwtToken, setJwtToken] = useState('');
@@ -93,22 +90,26 @@ export const FastestFingerGame = () => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const playersRef = useRef(players);
+  const playersRef = useRef(players); // Ref to keep players state stable for socket listeners
+  
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [questionNumber, setQuestionNumber] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [questionTimeLeft, setQuestionTimeLeft] = useState(0);
-  const [totalTimeLeft, setTotalTimeLeft] = useState(0);
+  const [totalTimeLeft, setTotalTimeLeft] = useState(0); // Total game time left
   const [timePerQuestion, setTimePerQuestion] = useState<10 | 20 | 30>(20);
   const [gameDuration, setGameDuration] = useState<1 | 2 | 5>(2);
+  
   const [scores, setScores] = useState<Record<string, number>>({});
-  const [hasAnswered, setHasAnswered] = useState(false);
+  const [hasAnswered, setHasAnswered] = useState(false); // Flag for current question
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
-  const [correctOptionId, setCorrectOptionId] = useState<string | null>(null);
+  const [correctOptionId, setCorrectOptionId] = useState<string | null>(null); // Revealed correct option
   const [waitingMessage, setWaitingMessage] = useState<string | null>(null);
   const [gameResults, setGameResults] = useState<Results | null>(null);
 
+  // Update ref whenever players state changes
   useEffect(() => { playersRef.current = players; }, [players]);
+
   const myParticipantId = players.find(p => p.userId === userId)?.participantId;
   const opponent = players.find(p => p.userId !== userId);
   const myScore = myParticipantId ? (scores[myParticipantId] || 0) : 0;
@@ -117,84 +118,177 @@ export const FastestFingerGame = () => {
   const formatTime = (seconds: number) => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 
   const findMatch = async () => {
-    if (!jwtToken || !userId) return;
+    console.log("[FastestFinger] Find Match button clicked.");
+    if (!jwtToken || !userId) { alert("Please enter User ID and JWT Token."); return; }
+    if (!socket || !socket.connected) { alert("Socket not connected. Please wait or refresh."); return; }
+
     setGameStatus('searching');
     try {
+      console.log("[FastestFinger] Calling /api/fastest-finger/find-match...");
       const response = await fetch('/api/fastest-finger/find-match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwtToken}` },
         body: JSON.stringify({ timePerQuestion: timePerQuestion * 1000, duration: gameDuration }),
       });
-      if (!response.ok) setGameStatus('idle');
-    } catch (error) { console.error('[FE] Error finding match:', error); setGameStatus('idle'); }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to find match.');
+      }
+      console.log("[FastestFinger] Matchmaking request sent successfully.");
+    } catch (error: any) {
+      console.error("[FastestFinger] Error finding match:", error.message);
+      alert(`Error finding match: ${error.message}`);
+      setGameStatus('idle');
+    }
   };
+
   const handleAnswerClick = (optionId: string) => {
+    console.log(`[FastestFinger] Answer clicked: ${optionId}`);
     if (!socket || !currentQuestion || hasAnswered || !sessionId || !myParticipantId) return;
     setSelectedOptionId(optionId);
-    setHasAnswered(true);
-    setGameStatus('answered');
+    setHasAnswered(true); // Player has answered for this question
+    setGameStatus('answered'); // Visual state for player
     socket.emit('answer:submit', { sessionId, participantId: myParticipantId, questionId: currentQuestion.id, optionId });
+    console.log(`[FastestFinger] Emitted 'answer:submit' for question ${currentQuestion.id}, option ${optionId}`);
   };
+
   const resetGame = () => {
+    console.log("[FastestFinger] Resetting game state.");
     setGameStatus('idle'); setSessionId(null); setCurrentQuestion(null); setHasAnswered(false);
     setSelectedOptionId(null); setCorrectOptionId(null); setScores({});
     setWaitingMessage(null); setPlayers([]); setGameResults(null); setTotalTimeLeft(0);
+    setQuestionNumber(0); setTotalQuestions(0); setQuestionTimeLeft(0);
+    // Socket connection is managed by useEffect and persists across games
   };
 
+  // Socket.IO Connection and Event Listeners
   useEffect(() => {
-    if (!userId) return;
-    const newSocket = io(SOCKET_SERVER_URL, { query: { userId } });
-    setSocket(newSocket);
+    console.log("[FastestFinger] useEffect triggered.");
+    if (!userId) {
+      console.log("[FastestFinger] userId is empty, disconnecting socket if exists.");
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
+      return;
+    }
 
-    newSocket.on('ff:match_found', (data) => {
-      setSessionId(data.sessionId); setPlayers(data.players); setTotalQuestions(data.totalQuestions || 50);
-      setGameDuration(data.duration); setTotalTimeLeft(data.duration * 60); setGameStatus('waiting');
-      const myInfo = data.players.find(p => p.userId === userId);
-      if (myInfo) { newSocket.emit('game:register-participant', { participantId: myInfo.participantId }); newSocket.emit('game:join', { sessionId: data.sessionId, participantId: myInfo.participantId }); }
-    });
-    newSocket.on('ff:new_question', (data) => {
-      setCurrentQuestion(data.question); setQuestionNumber(data.questionNumber); setQuestionTimeLeft(data.timeLimit / 1000);
-      setHasAnswered(false); setSelectedOptionId(null); setCorrectOptionId(null);
-      setGameStatus('playing'); setWaitingMessage(null);
-    });
-    
-    // ** THE LOGIC FIX **
-    // This event handler is now simple. It just provides feedback. It does NOT set the correct answer.
-    newSocket.on('ff:player_answered', (data) => {
-      const player = playersRef.current.find(p => p.participantId === data.participantId);
-      const isMe = player?.userId === userId;
-      if (!isMe) setWaitingMessage(`${player?.username || 'Opponent'} has answered!`);
-      if (isMe && !data.correct) setWaitingMessage('Incorrect answer! You are locked out for this question.');
-    });
+    if (!socket) {
+      console.log(`[FastestFinger] Establishing new Socket.IO connection for userId: ${userId}`);
+      const newSocket = io(SOCKET_SERVER_URL, {
+        query: { userId },
+        reconnection: true, // Ensure reconnection is enabled for reliability
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
+      setSocket(newSocket);
 
-    // The correct answer is ONLY revealed when a point is awarded...
-    newSocket.on('ff:point_awarded', (data) => {
-      setScores(data.allScores);
-      setCorrectOptionId(data.correctOptionId); // Set the correct answer ID now.
-      const winner = playersRef.current.find(p => p.participantId === data.participantId);
-      setWaitingMessage(`${winner?.username || 'Player'} wins this round!`);
-    });
+      newSocket.on('connect', () => console.log(`[FastestFinger] Socket connected: ${newSocket.id}`));
+      newSocket.on('disconnect', (reason) => console.log(`[FastestFinger] Socket disconnected. Reason: ${reason}`));
+      newSocket.on('connect_error', (err) => {
+        console.error(`[FastestFinger] Socket connection error: ${err.message}`);
+        alert(`Could not connect to the game server: ${err.message}. Please refresh.`);
+        setGameStatus('idle');
+      });
+      
+      // Universal handshake for match found event
+      newSocket.on('ff:match_found', (data: { sessionId: string; players: Player[], duration: number, timePerQuestion: number, totalQuestions: number }) => {
+        console.log("[FastestFinger] 'ff:match_found' event received:", data);
+        const myInfo = data.players.find(p => p.userId === userId);
+        if (!myInfo) {
+          console.error("[FastestFinger] My participant info not found in match:found data.");
+          setGameStatus('idle');
+          return;
+        }
 
-    // ...or when the question times out.
-    newSocket.on('ff:question_timeout', (data) => {
-      setWaitingMessage('Time up! Moving to the next question...');
-      setCorrectOptionId(data.correctOptionId); // Set the correct answer ID now.
-    });
-    
-    newSocket.on('ff:game_end', (data) => {
-      setScores(data.scores); setGameResults(data.results);
-      setGameStatus('finished'); setWaitingMessage(null);
-    });
+        // 1. Register with the now-generic socket server.
+        console.log(`[FastestFinger] Emitting 'game:register-participant' for participant ${myInfo.participantId}, session ${data.sessionId}.`);
+        newSocket.emit("game:register-participant", {
+          participantId: myInfo.participantId,
+          sessionId: data.sessionId, // FIX: Pass sessionId for room joining
+        });
+        
+        // 2. Update local state for the game.
+        setSessionId(data.sessionId);
+        setPlayers(data.players);
+        setTotalQuestions(data.totalQuestions || 50);
+        setGameDuration(data?.duration);
+        setTotalTimeLeft(data.duration * 60);
+        setTimePerQuestion(data.timePerQuestion / 1000 as 10 | 20 | 30); // Convert ms to s
+        setGameStatus('waiting'); // Waiting for first question to be sent by server
+        console.log("[FastestFinger] Game status set to 'waiting'.");
+      });
 
-    return () => { newSocket.disconnect(); };
-  }, [userId]);
+      // Fastest Finger specific game events
+      newSocket.on('ff:new_question', (data: { question: Question; questionNumber: number; timeLimit: number }) => {
+        console.log("[FastestFinger] 'ff:new_question' event received:", data);
+        setCurrentQuestion(data.question);
+        setQuestionNumber(data.questionNumber);
+        setQuestionTimeLeft(data.timeLimit / 1000); // Convert ms to s
+        setHasAnswered(false);
+        setSelectedOptionId(null);
+        setCorrectOptionId(null);
+        setGameStatus('playing'); // Player can now answer
+        setWaitingMessage(null);
+        console.log(`[FastestFinger] Question ${data.questionNumber} loaded. Time: ${data.timeLimit/1000}s`);
+      });
+      
+      newSocket.on('ff:player_answered', (data: { participantId: string; correct: boolean }) => {
+        console.log(`[FastestFinger] 'ff:player_answered' event received: ${data.participantId}, Correct: ${data.correct}`);
+        const player = playersRef.current.find(p => p.participantId === data.participantId);
+        const isMe = player?.userId === userId;
+        if (!isMe) {
+          setWaitingMessage(`${player?.username || 'Opponent'} has answered!`);
+        } else if (!data.correct) {
+          setWaitingMessage('Incorrect answer! You are locked out for this question.');
+        }
+      });
 
+      newSocket.on('ff:point_awarded', (data: { participantId: string; allScores: Record<string, number>; correctOptionId: string }) => {
+        console.log("[FastestFinger] 'ff:point_awarded' event received:", data);
+        setScores(data.allScores);
+        setCorrectOptionId(data.correctOptionId); // Reveal correct option
+        const winner = playersRef.current.find(p => p.participantId === data.participantId);
+        setWaitingMessage(`${winner?.username || 'Player'} wins this round!`);
+      });
+
+      newSocket.on('ff:question_timeout', (data: { questionNumber: number; correctOptionId: string }) => {
+        console.log("[FastestFinger] 'ff:question_timeout' event received:", data);
+        setWaitingMessage('Time up! Moving to the next question...');
+        setCorrectOptionId(data.correctOptionId); // Reveal correct option on timeout
+      });
+      
+      newSocket.on('ff:game_end', (data: { scores: Record<string, number>; results: Results }) => {
+        console.log("[FastestFinger] 'ff:game_end' event received:", data);
+        setScores(data.scores);
+        setGameResults(data.results);
+        setGameStatus('finished');
+        setWaitingMessage(null);
+        setCurrentQuestion(null);
+        console.log("[FastestFinger] Game status set to 'finished'.");
+      });
+    }
+
+    // Cleanup function for useEffect
+    return () => {
+      if (socket) {
+        console.log("[FastestFinger] Cleaning up socket connection.");
+        socket.offAny(); // Remove all listeners
+        socket.disconnect();
+        setSocket(null);
+      }
+    };
+  }, [userId]); // Dependency: userId to manage socket lifecycle
+
+  // Question timer useEffect
   useEffect(() => {
     if (gameStatus === 'playing' && questionTimeLeft > 0 && !hasAnswered) {
       const timer = setTimeout(() => setQuestionTimeLeft(prev => prev - 1), 1000);
       return () => clearTimeout(timer);
     }
   }, [gameStatus, questionTimeLeft, hasAnswered]);
+
+  // Total game time useEffect
   useEffect(() => {
     if ((gameStatus === 'playing' || gameStatus === 'answered' || gameStatus === 'waiting') && totalTimeLeft > 0) {
       const timer = setTimeout(() => setTotalTimeLeft(prev => prev - 1), 1000);
@@ -203,12 +297,13 @@ export const FastestFingerGame = () => {
   }, [gameStatus, totalTimeLeft]);
 
   const getOptionStyle = (optionId: string) => {
-    // This logic now works correctly because `correctOptionId` is only set when the round is over.
+    // If correct option is revealed, highlight based on correctness
     if (correctOptionId) {
       if (optionId === correctOptionId) return styles.optionCorrect;
       if (optionId === selectedOptionId && optionId !== correctOptionId) return styles.optionIncorrect;
       return styles.option;
     }
+    // Before correct option is revealed, only highlight player's selection
     if (hasAnswered && selectedOptionId === optionId) return styles.optionSelected;
     return styles.option;
   };
@@ -268,8 +363,8 @@ export const FastestFingerGame = () => {
           <h2 style={styles.statusHeader}>🏁 Game Over!</h2>
           <h3 style={styles.finalScoresHeader}>Final Scores:</h3>
           <div style={styles.scoreBoard}>
-            <span>You: {myScore}</span>
-            <span>Opponent: {opponentScore}</span>
+            <span>{players.find(p => p.userId === userId)?.username || 'You'}: {myScore}</span>
+            <span>{opponent?.username || 'Opponent'}: {opponentScore}</span>
           </div>
           {gameResults && (<div style={styles.graphContainer}><ResultsGraph results={gameResults} players={players} myUserId={userId} /></div>)}
           <button onClick={resetGame} style={{ ...styles.button, marginTop: '20px' }}>Play Again</button>
@@ -279,7 +374,6 @@ export const FastestFingerGame = () => {
   );
 };
 
-// --- STYLES ---
 const styles: { [key: string]: React.CSSProperties } = {
   container: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', maxWidth: '700px', margin: '40px auto', padding: '20px', color: '#333' },
   title: { textAlign: 'center', color: '#2c3e50', marginBottom: '30px' },

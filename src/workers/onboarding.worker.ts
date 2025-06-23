@@ -27,7 +27,7 @@ export const processOnboardingBonus = async (job: Job) => {
         create: {
           title: ACHIEVEMENT_TITLE,
           description: "Completed the initial onboarding process.",
-          xpReward: XP_BONUS,
+          xp: XP_BONUS,
           // --- FIX: Provide a concrete string value for 'category' ---
           // You must define what category this achievement belongs to.
           category: "Onboarding" // <-- Replace "Onboarding" with your desired category string

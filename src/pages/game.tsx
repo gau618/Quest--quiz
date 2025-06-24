@@ -1,103 +1,52 @@
 // src/pages/index.tsx
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { QuickDuelGame } from '@/components/QuickDuelGame';
 import { FastestFingerGame } from '@/components/FastestFingerGame';
 import { PracticeModeGame } from '@/components/PracticeModeGame';
+import { TimeAttackGame } from '@/components/TimeAttackGame'; // NEW
 
-// Define Game Mode types for clarity and type safety
-type GameModeSelection = 'quick_duel' | 'fastest_finger' | 'practice_mode' | null;
+type SelectedGameMode = 'none' | 'quick-duel' | 'fastest-finger' | 'practice' | 'time-attack'; // NEW
 
-export default function Home() {
-  const [selectedGame, setSelectedGame] = useState<GameModeSelection>(null);
+const HomePage: React.FC = () => {
+  const [selectedMode, setSelectedMode] = useState<SelectedGameMode>('none');
 
-  const buttonStyle: React.CSSProperties = {
-    padding: '20px 40px',
-    fontSize: '24px',
-    cursor: 'pointer',
-    borderRadius: '10px',
-    border: '1px solid',
-    backgroundColor: '#f0f4f8',
-    color: '#333',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-  };
-
-  const backButtonStyle: React.CSSProperties = {
-    marginTop: '30px', // Increased margin
-    padding: '12px 25px', // Slightly larger padding
-    fontSize: '18px', // Larger font
-    cursor: 'pointer',
-    borderRadius: '8px', // Consistent border radius
-    border: '1px solid #007bff',
-    backgroundColor: '#e7f3ff',
-    color: '#007bff',
-    transition: 'background-color 0.3s, color 0.3s',
+  const renderGameComponent = () => {
+    switch (selectedMode) {
+      case 'quick-duel': return <QuickDuelGame />;
+      case 'fastest-finger': return <FastestFingerGame />;
+      case 'practice': return <PracticeModeGame />;
+      case 'time-attack': return <TimeAttackGame />; // NEW
+      default:
+        return (
+          <div style={styles.container}>
+            <h1 style={styles.title}>🚀 Choose Your Game Mode!</h1>
+            <div style={styles.buttonGroup}>
+              <button style={styles.modeButton} onClick={() => setSelectedMode('quick-duel')}>⚡ Quick Duel</button>
+              <button style={styles.modeButton} onClick={() => setSelectedMode('fastest-finger')}>🔥 Fastest Finger</button>
+              <button style={styles.modeButton} onClick={() => setSelectedMode('practice')}>📚 Practice Mode</button>
+              <button style={styles.modeButton} onClick={() => setSelectedMode('time-attack')}>⏰ Time Attack</button> {/* NEW */}
+            </div>
+          </div>
+        );
+    }
   };
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '40px', textAlign: 'center', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '3rem', color: '#2c3e50', marginBottom: '50px' }}>
-        🚀 Choose Your Game Mode!
-      </h1>
-
-      {!selectedGame && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '30px', marginTop: '50px' }}>
-          <button
-            onClick={() => setSelectedGame('quick_duel')}
-            style={{ ...buttonStyle, borderColor: '#007bff', color: '#007bff' }}
-          >
-            ⚔️ Quick Duel (1v1)
-          </button>
-          <button
-            onClick={() => setSelectedGame('fastest_finger')}
-            style={{ ...buttonStyle, borderColor: '#28a745', color: '#28a745' }}
-          >
-            ⚡ Fastest Finger First
-          </button>
-          <button
-            onClick={() => setSelectedGame('practice_mode')}
-            style={{ ...buttonStyle, borderColor: '#ffc107', color: '#ffc107' }}
-          >
-            📚 Practice Mode (Solo)
-          </button>
-        </div>
+    <div style={{ padding: '20px' }}>
+      {selectedMode !== 'none' && (
+        <button style={styles.backButton} onClick={() => setSelectedMode('none')}>← Back to Game Selection</button>
       )}
-
-      {selectedGame === 'quick_duel' && (
-        <div>
-          <button
-            onClick={() => setSelectedGame(null)}
-            style={backButtonStyle}
-          >
-            ← Back to Game Selection
-          </button>
-          <QuickDuelGame />
-        </div>
-      )}
-
-      {selectedGame === 'fastest_finger' && (
-        <div>
-          <button
-            onClick={() => setSelectedGame(null)}
-            style={backButtonStyle}
-          >
-            ← Back to Game Selection
-          </button>
-          <FastestFingerGame />
-        </div>
-      )}
-
-      {selectedGame === 'practice_mode' && (
-        <div>
-          <button
-            onClick={() => setSelectedGame(null)}
-            style={backButtonStyle}
-          >
-            ← Back to Game Selection
-          </button>
-          <PracticeModeGame />
-        </div>
-      )}
+      {renderGameComponent()}
     </div>
   );
-}
+};
+
+export default HomePage;
+
+const styles: { [key: string]: React.CSSProperties } = {
+  container: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' },
+  title: { fontSize: '2.5rem', marginBottom: '40px', color: '#333' },
+  buttonGroup: { display: 'flex', flexDirection: 'column', gap: '20px', width: '300px' },
+  modeButton: { padding: '15px 20px', fontSize: '1.2rem', cursor: 'pointer', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', transition: 'all 0.2s' },
+  backButton: { position: 'absolute', top: '20px', left: '20px', background: 'none', border: 'none', fontSize: '1rem', cursor: 'pointer' },
+};

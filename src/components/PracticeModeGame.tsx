@@ -344,7 +344,7 @@ export const PracticeModeGame = () => {
       {status === "finished" && finalResults && (
         <div style={styles.card}>
             <h2 style={styles.statusHeader}>🏁 Practice Complete!</h2>
-            <p>You answered {finalResults.filter(r => r.correct).length} out of {finalResults.length} questions correctly.</p>
+            <p>You answered {finalResults?.filter(r => r.correct).length} out of {finalResults.length} questions correctly.</p>
             {/* The resetGame function now correctly returns to the setup screen without disconnecting */}
             <button onClick={resetGame} style={{ ...styles.button, marginTop: '20px' }}>Practice Again</button>
         </div>

@@ -5,14 +5,13 @@ import { Server, Socket } from 'socket.io';
 import { createClient } from 'redis';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { setupGracefulShutdown } from '@/lib/shutdown';
-import { gameService } from '@/lib/services/game.service'; // Corrected Path
+import { gameService } from '@/lib/services/game.service';
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
-// Configure Redis clients for the Socket.IO adapter
 const pubClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
 const subClient = pubClient.duplicate();
 
@@ -27,7 +26,6 @@ Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
 const userSocketMap = new Map<string, string>();
 const participantSocketMap = new Map<string, string>();
 
-// This dedicated subscriber listens for custom application events from the game service.
 const ipcSubscriber = pubClient.duplicate();
 ipcSubscriber.connect();
 ipcSubscriber.subscribe('socket-events', (message) => {
@@ -38,29 +36,18 @@ ipcSubscriber.subscribe('socket-events', (message) => {
         case 'user':
             ids.forEach((userId: string) => {
                 const socketId = userSocketMap.get(userId);
-                if (socketId) {
-                    io.to(socketId).emit(event, payload);
-                    console.log(`[Socket.IO] Emitted '${event}' to user ${userId} (socket ${socketId}).`);
-                } else {
-                    console.warn(`[Socket.IO] User ${userId} not found in userSocketMap for event '${event}'.`);
-                }
+                if (socketId) io.to(socketId).emit(event, payload);
+                else console.warn(`[Socket.IO] User ${userId} not found for event '${event}'.`);
             });
             break;
         case 'room':
-            ids.forEach((room: string) => {
-                io.to(room).emit(event, payload);
-                console.log(`[Socket.IO] Emitted '${event}' to room ${room}.`);
-            });
+            ids.forEach((room: string) => io.to(room).emit(event, payload));
             break;
         case 'participant':
             ids.forEach((participantId: string) => {
                 const socketId = participantSocketMap.get(participantId);
-                if (socketId) {
-                    io.to(socketId).emit(event, payload);
-                    console.log(`[Socket.IO] Emitted '${event}' to participant ${participantId} (socket ${socketId}).`);
-                } else {
-                    console.warn(`[Socket.IO] Participant ${participantId} not found in participantSocketMap for event '${event}'.`);
-                }
+                if (socketId) io.to(socketId).emit(event, payload);
+                else console.warn(`[Socket.IO] Participant ${participantId} not found for event '${event}'.`);
             });
             break;
         }
@@ -73,46 +60,39 @@ ipcSubscriber.subscribe('socket-events', (message) => {
 io.on('connection', (socket: Socket) => {
   const { userId } = socket.handshake.query;
   if (typeof userId !== 'string' || !userId) {
-    console.warn(`[Socket.IO] Socket ${socket.id} connected without a valid userId. Disconnecting.`);
     socket.disconnect(true);
     return;
   }
   userSocketMap.set(userId, socket.id);
-  console.log(`[Socket.IO] User ${userId} connected with socket ${socket.id}. Total users: ${userSocketMap.size}`);
+  console.log(`[Socket.IO] User ${userId} connected with socket ${socket.id}.`);
 
-  // This listener is now UNIVERSAL. It works for all game modes.
   socket.on('game:register-participant', (data: { participantId: string; sessionId?: string }) => {
-    console.log(`[Socket.IO] Received 'game:register-participant' from socket ${socket.id} with data:`, data);
+    console.log(`[Socket.IO] Registering participant ${data.participantId} to socket ${socket.id}.`);
     if (data.participantId) {
       participantSocketMap.set(data.participantId, socket.id);
-      console.log(`[Socket.IO] Registered participant ${data.participantId} to socket ${socket.id}.`);
-      if (data.sessionId) {
-        socket.join(data.sessionId);
-        console.log(`[Socket.IO] Socket ${socket.id} joined session room ${data.sessionId}.`);
-      }
-    } else {
-      console.warn(`[Socket.IO] Received game:register-participant without participantId from socket ${socket.id}.`);
+      if (data.sessionId) socket.join(data.sessionId);
     }
   });
-  
 
-  // Event handlers that forward requests to the game service
+  // --- All Game Mode Event Listeners ---
+  socket.on('quickduel:request_first_question', (data) => gameService.sendNextQuestion(data.sessionId, data.participantId));
   socket.on('practice:next_question', (data) => gameService.handleNextPracticeQuestion(data.sessionId, data.participantId));
+  
+  // NEW LISTENER FOR TIME ATTACK
+  socket.on('time_attack:request_next_question', (data: { sessionId: string; participantId: string }) => {
+    console.log(`[Socket.IO] Received 'time_attack:request_next_question' for session ${data.sessionId}`);
+    gameService.sendNextTimeAttackQuestion(data.sessionId, data.participantId);
+  });
+  
   socket.on('answer:submit', (data) => gameService.handleAnswer(data.sessionId, data.participantId, data.questionId, data.optionId));
   socket.on('question:skip', (data) => gameService.handleSkip(data.sessionId, data.participantId));
 
   socket.on('disconnect', (reason) => {
     console.log(`[Socket.IO] Socket ${socket.id} disconnected. Reason: ${reason}`);
-    if (userSocketMap.get(userId) === socket.id) {
-      userSocketMap.delete(userId);
-    }
+    if (userSocketMap.get(userId) === socket.id) userSocketMap.delete(userId);
     for (const [pId, sId] of participantSocketMap.entries()) {
-      if (sId === socket.id) {
-        participantSocketMap.delete(pId);
-        break;
-      }
+      if (sId === socket.id) participantSocketMap.delete(pId);
     }
-    console.log(`[Socket.IO] User ${userId} and their participant mappings have been cleaned up.`);
   });
 });
 

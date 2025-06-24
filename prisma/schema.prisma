@@ -31,6 +31,8 @@ enum GameMode {
 
 enum GameStatus {
   WAITING
+  LOBBY             
+  READY_COUNTDOWN   
   ACTIVE
   FINISHED
   CANCELLED
@@ -127,10 +129,16 @@ model UserProfile {
 model GameSession {
   id           String      @id @default(cuid())
   mode         GameMode
-  status       GameStatus  @default(WAITING)
+  status       GameStatus  @default(LOBBY)
   roomCode     String?     @unique
   createdAt    DateTime    @default(now())
   finishedAt   DateTime?
+  difficulty   Difficulty?
+  hostId             String?     
+  minPlayers         Int?    
+  maxPlayers         Int?      
+  durationMinutes    Int?       
+  countdownStartTime DateTime?   
   participants GameParticipant[]
   answers      GameAnswer[]
   chatMessages Message[]

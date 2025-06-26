@@ -11,6 +11,7 @@ async function startWorkers() {
   import('./matchmaking.worker');
   import('./matchmaking-timeout.worker');
   import('./game-timer.worker');
+  import('./lobby-countdown.worker')
 
   console.log('✅ All worker processes have been initialized and are running.');
 }

@@ -20,6 +20,13 @@ export interface AnswerData {
   correct?: boolean; // only for 'answered' action
 }
 
+export enum GameStatus {
+  LOBBY = 'LOBBY',
+  READY_COUNTDOWN = 'READY_COUNTDOWN',
+  ACTIVE = 'ACTIVE',
+  FINISHED = 'FINISHED',
+}
+
 // Define the overall GameState stored in Redis/cache
 export interface GameState {
   questions: Question[];

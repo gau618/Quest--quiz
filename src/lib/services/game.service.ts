@@ -6,7 +6,8 @@ import { sessionManager } from "./game/session/session.manager";
 import { questionManager } from "./game/question/question.manager";
 import { stateManager } from "./game/state/state.manager";
 import { botAI } from "./game/bot/bot.ai";
-import { GameState, Question, AnswerData } from "./game/types";
+import { GameState, Question, AnswerData, GameStatus } from "./game/types";
+
 import prisma from "@/lib/prisma/client";
 
 const FFF_MAX_QUESTION_TIME = 30000;
@@ -111,8 +112,8 @@ class GameService {
     const gameEndJobId = `game-end:${session.id}`;
     await queueService.dispatch(
       "game-timers",
-      { sessionId: session.id, questionId: 'game-end' },
-  { delay: duration * 60 * 1000, jobId: gameEndJobId }
+      { sessionId: session.id, questionId: "game-end" },
+      { delay: duration * 60 * 1000, jobId: gameEndJobId }
     );
   }
 
@@ -288,7 +289,7 @@ class GameService {
     await stateManager.set(session.id, gameState);
     await queueService.dispatch(
       "game-timers",
-      { sessionId: session.id },
+      { sessionId: session.id ,questionId: "game-end"},
       { delay: durationMinutes * 60 * 1000, jobId: `game-end:${session.id}` }
     );
     socketService.emitToUsers([userId], "time_attack:started", {
@@ -303,6 +304,109 @@ class GameService {
       totalQuestions: questions.length,
       durationMinutes,
     };
+  }
+
+  public async startGroupGame(sessionId: string): Promise<void> {
+    const session = await sessionManager.getSessionWithParticipants(sessionId);
+    if (!session || session.status !== GameStatus.ACTIVE) return;
+
+    const difficulty = session.difficulty || Difficulty.MEDIUM;
+    const durationMinutes = session.durationMinutes || 5;
+    const questions = await questionManager.fetchQuestions(difficulty);
+    if (questions.length === 0) {
+      await sessionManager.cancel(sessionId);
+      socketService.emitToRoom(sessionId, "game:error", {
+        message: "No questions available.",
+      });
+      return;
+    }
+
+    const gameState: GameState = {
+      questions,
+      userProgress: session.participants.reduce(
+        (acc, p) => ({ ...acc, [p.id]: 0 }),
+        {}
+      ),
+      results: session.participants.reduce(
+        (acc, p) => ({ ...acc, [p.id]: [] }),
+        {}
+      ),
+      scores: session.participants.reduce(
+        (acc, p) => ({ ...acc, [p.id]: 0 }),
+        {}
+      ),
+      difficulty,
+      gameMode: GameMode.GROUP_PLAY,
+      endTime: Date.now() + durationMinutes * 60 * 1000,
+      questionSentAt: {},
+    };
+    await stateManager.set(sessionId, gameState);
+
+    const playersInfo = session.participants.map((p) => ({
+      participantId: p.id,
+      userId: p.userId,
+      username: p.userProfile?.username || `Player`,
+      avatarUrl: p.userProfile?.avatarUrl,
+      isBot: p.isBot,
+    }));
+    socketService.emitToRoom(sessionId, "group_game:started", {
+      sessionId,
+      players: playersInfo,
+      duration: durationMinutes,
+    });
+
+    session.participants.forEach((p) => {
+      this.sendNextGroupPlayQuestion(sessionId, p.id);
+    });
+
+    await queueService.dispatch(
+      "game-timers",
+      { sessionId ,questionId: "game-end"},
+      { delay: durationMinutes * 60 * 1000, jobId: `game-end:${sessionId}` }
+    );
+  }
+
+  public async sendNextGroupPlayQuestion(
+    sessionId: string,
+    participantId: string
+  ): Promise<void> {
+    const state = await stateManager.get(sessionId);
+    if (
+      !state ||
+      Date.now() >= state.endTime ||
+      (state.userProgress[participantId] ?? 0) >= state.questions.length
+    )
+      return;
+    const questionIndex = state.userProgress[participantId] ?? 0;
+    const question = state.questions[questionIndex];
+    const session = await sessionManager.getSessionWithParticipants(sessionId);
+    const participant = session?.participants.find(
+      (p) => p.id === participantId
+    );
+
+    const { explanation, learningTip, correctOptionId, ...clientQuestion } =
+      question;
+    if (participant?.isBot) {
+      const { chosenOptionId, delay } = botAI.getBotAnswer(
+        question,
+        GameMode.GROUP_PLAY
+      );
+      setTimeout(() => {
+        this.handleAnswer(
+          sessionId,
+          participant.id,
+          question.id,
+          chosenOptionId
+        );
+      }, delay);
+    } else {
+      console.log(clientQuestion)
+      socketService.emitToParticipant(
+        participantId,
+        "question:new",
+        clientQuestion
+      );
+    }
   }
 
   // --- NEW: sendNextTimeAttackQuestion Method ---
@@ -365,6 +469,9 @@ class GameService {
     questionId: string,
     optionId: string
   ) {
+    console.log(
+      `[GameService] Handling answer for session ${sessionId}, participant ${participantId}, question ${questionId}, option ${optionId}`
+    );
     let state = await stateManager.get(sessionId);
     if (!state) return;
 
@@ -388,9 +495,9 @@ class GameService {
         action: "answered",
         correct: isCorrect,
       });
-       if (isCorrect) {
-            state.scores[participantId] = (state.scores[participantId] || 0) + 10;
-        }
+      if (isCorrect) {
+        state.scores[participantId] = (state.scores[participantId] || 0) + 10;
+      }
       state.userProgress[participantId]++;
       await stateManager.set(sessionId, state);
       socketService.emitToParticipant(participantId, "answer:feedback", {
@@ -400,6 +507,16 @@ class GameService {
         learningTip: question.learningTip,
       });
       return;
+    }
+
+    if (state.gameMode === GameMode.GROUP_PLAY) {
+      return this.handleGroupPlayAnswer(
+        sessionId,
+        participantId,
+        questionId,
+        optionId,
+        state
+      );
     }
 
     if (state.gameMode === GameMode.FASTEST_FINGER_FIRST) {
@@ -428,6 +545,31 @@ class GameService {
       this.sendNextQuestion(sessionId, participantId);
     }
   }
+  private async handleGroupPlayAnswer(
+    sessionId: string,
+    participantId: string,
+    questionId: string,
+    optionId: string,
+    state: GameState
+  ): Promise<void> {
+    const question = state.questions.find((q) => q.id === questionId);
+    if (!question) return;
+    const isCorrect = question.correctOptionId === optionId;
+    state.results[participantId].push({
+      questionId,
+      timeTaken: 0,
+      action: "answered",
+      correct: isCorrect,
+    });
+    if (isCorrect)
+      state.scores[participantId] = (state.scores[participantId] || 0) + 10;
+    state.userProgress[participantId]++;
+    await stateManager.set(sessionId, state);
+    socketService.emitToRoom(sessionId, "group_game:score_update", {
+      scores: state.scores,
+    });
+    this.sendNextGroupPlayQuestion(sessionId, participantId);
+  }
 
   // --- MODIFIED: endGame to handle Time Attack ---
   public async endGame(sessionId: string) {
@@ -438,12 +580,17 @@ class GameService {
 
     await stateManager.del(sessionId);
     await sessionManager.end(sessionId, state.scores);
-     if (state.gameMode === GameMode.PRACTICE) {
-        const participantId = Object.keys(state.results)[0];
-        const finalResultsArray = state.results[participantId] || [];
-        socketService.emitToRoom(sessionId, "practice:finished", { scores: state.scores, results: finalResultsArray });
-        console.log(`[GameService] Emitted 'practice:finished' to room ${sessionId} with corrected results payload.`);
-        return; // Exit after handling practice mode specifically
+    if (state.gameMode === GameMode.PRACTICE) {
+      const participantId = Object.keys(state.results)[0];
+      const finalResultsArray = state.results[participantId] || [];
+      socketService.emitToRoom(sessionId, "practice:finished", {
+        scores: state.scores,
+        results: finalResultsArray,
+      });
+      console.log(
+        `[GameService] Emitted 'practice:finished' to room ${sessionId} with corrected results payload.`
+      );
+      return; // Exit after handling practice mode specifically
     }
 
     let eventName: string;
@@ -453,6 +600,9 @@ class GameService {
         break;
       case GameMode.TIME_ATTACK:
         eventName = "time_attack:finished";
+        break;
+      case GameMode.GROUP_PLAY:
+        eventName = "group_game:finished";
         break;
       default:
         eventName = "game:end"; // For QUICK_DUEL

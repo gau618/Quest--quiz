@@ -6,6 +6,7 @@ import { createClient } from 'redis';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { setupGracefulShutdown } from '@/lib/shutdown';
 import { gameService } from '@/lib/services/game.service';
+import { lobbyService } from '@/lib/lobby/lobby.service';
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
@@ -83,8 +84,26 @@ io.on('connection', (socket: Socket) => {
     console.log(`[Socket.IO] Received 'time_attack:request_next_question' for session ${data.sessionId}`);
     gameService.sendNextTimeAttackQuestion(data.sessionId, data.participantId);
   });
+  // ... inside io.on('connection', (socket: Socket) => { ... })
+
+// --- New Lobby Event Listeners ---
+socket.on('lobby:leave', (data) => {
+  // data: { roomCode: string }
+  lobbyService.leaveLobby(data.roomCode, socket.handshake.query.userId as string);
+});
+socket.on('lobby:initiate_countdown', (data) => {
+  // data: { roomCode: string }
+  lobbyService.initiateCountdown(data.roomCode, socket.handshake.query.userId as string);
+});
+socket.on('lobby:cancel_countdown', (data) => {
+  // data: { roomCode: string }
+  lobbyService.cancelCountdown(data.roomCode, socket.handshake.query.userId as string);
+});
+
   
-  socket.on('answer:submit', (data) => gameService.handleAnswer(data.sessionId, data.participantId, data.questionId, data.optionId));
+  socket.on('answer:submit', (data) => {
+    console.log(`[Socket.IO] Received answer submission for session ${data.sessionId}, participant ${data.participantId}, question ${data.questionId}, option ${data.optionId}`);
+    gameService.handleAnswer(data.sessionId, data.participantId, data.questionId, data.optionId)});
   socket.on('question:skip', (data) => gameService.handleSkip(data.sessionId, data.participantId));
 
   socket.on('disconnect', (reason) => {

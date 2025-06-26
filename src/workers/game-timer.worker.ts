@@ -11,7 +11,7 @@ interface GameTimerJobData {
 // Create a worker for the 'game-timers' queue
 const worker = createWorker<GameTimerJobData>('game-timers', async (job: Job<GameTimerJobData>) => {
   const { sessionId, questionId } = job.data;
-
+ console.log(`[Worker][GameTimer] Processing job for session ${sessionId}, question ${questionId}`);
   // --- FIX: Route the job to the correct service function ---
   // If the job is for the main game end, call endGame.
   if (questionId === 'game-end') {

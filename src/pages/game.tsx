@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 import { QuickDuelGame } from '@/components/QuickDuelGame';
 import { FastestFingerGame } from '@/components/FastestFingerGame';
 import { PracticeModeGame } from '@/components/PracticeModeGame';
-import { TimeAttackGame } from '@/components/TimeAttackGame'; // NEW
+import { TimeAttackGame } from '@/components/TimeAttackGame';
+import GroupPlay from '@/components/GroupPlay'; // NEW
 
-type SelectedGameMode = 'none' | 'quick-duel' | 'fastest-finger' | 'practice' | 'time-attack'; // NEW
+type SelectedGameMode = 'none' | 'quick-duel' | 'fastest-finger' | 'practice' | 'time-attack' | 'group-play'; // NEW
 
 const HomePage: React.FC = () => {
   const [selectedMode, setSelectedMode] = useState<SelectedGameMode>('none');
@@ -15,7 +16,8 @@ const HomePage: React.FC = () => {
       case 'quick-duel': return <QuickDuelGame />;
       case 'fastest-finger': return <FastestFingerGame />;
       case 'practice': return <PracticeModeGame />;
-      case 'time-attack': return <TimeAttackGame />; // NEW
+      case 'time-attack': return <TimeAttackGame />;
+      case 'group-play': return <GroupPlay onClose={() => setSelectedMode('none')} />; // NEW
       default:
         return (
           <div style={styles.container}>
@@ -24,7 +26,8 @@ const HomePage: React.FC = () => {
               <button style={styles.modeButton} onClick={() => setSelectedMode('quick-duel')}>⚡ Quick Duel</button>
               <button style={styles.modeButton} onClick={() => setSelectedMode('fastest-finger')}>🔥 Fastest Finger</button>
               <button style={styles.modeButton} onClick={() => setSelectedMode('practice')}>📚 Practice Mode</button>
-              <button style={styles.modeButton} onClick={() => setSelectedMode('time-attack')}>⏰ Time Attack</button> {/* NEW */}
+              <button style={styles.modeButton} onClick={() => setSelectedMode('time-attack')}>⏰ Time Attack</button>
+              <button style={styles.modeButton} onClick={() => setSelectedMode('group-play')}>👥 Group Play</button> {/* NEW */}
             </div>
           </div>
         );

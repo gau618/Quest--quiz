@@ -4,11 +4,12 @@ import { QuickDuelGame } from '@/components/QuickDuelGame';
 import { FastestFingerGame } from '@/components/FastestFingerGame';
 import { PracticeModeGame } from '@/components/PracticeModeGame';
 import { TimeAttackGame } from '@/components/TimeAttackGame';
+
 import GroupPlay from '@/components/GroupPlay'; // NEW
 
 type SelectedGameMode = 'none' | 'quick-duel' | 'fastest-finger' | 'practice' | 'time-attack' | 'group-play'; // NEW
 
-const HomePage: React.FC = () => {
+export const HomePage: React.FC = () => {
   const [selectedMode, setSelectedMode] = useState<SelectedGameMode>('none');
 
   const renderGameComponent = () => {
@@ -40,6 +41,9 @@ const HomePage: React.FC = () => {
         <button style={styles.backButton} onClick={() => setSelectedMode('none')}>← Back to Game Selection</button>
       )}
       {renderGameComponent()}
+      <div>
+
+      </div>
     </div>
   );
 };

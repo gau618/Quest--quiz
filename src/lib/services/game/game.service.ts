@@ -2,11 +2,13 @@
 import { GameMode, Difficulty } from "@prisma/client";
 import { socketService } from "@/lib/websocket/socket.service";
 import { queueService } from "@/lib/queue/config";
-import { sessionManager } from "./game/session/session.manager";
-import { questionManager } from "./game/question/question.manager";
-import { stateManager } from "./game/state/state.manager";
-import { botAI } from "./game/bot/bot.ai";
-import { GameState, Question, AnswerData, GameStatus } from "./game/types";
+import { sessionManager } from "./session/session.manager";
+import { questionManager } from "./question/question.manager";
+import { stateManager } from "./state/state.manager";
+import { botAI } from "./bot/bot.ai";
+import { calculateElo } from "../../game/elo";
+import { leaderboardService } from "../leaderboard/leaderboard.service";
+import { GameState, Question, AnswerData, GameStatus } from "./types";
 
 import prisma from "@/lib/prisma/client";
 
@@ -289,7 +291,7 @@ class GameService {
     await stateManager.set(session.id, gameState);
     await queueService.dispatch(
       "game-timers",
-      { sessionId: session.id ,questionId: "game-end"},
+      { sessionId: session.id, questionId: "game-end" },
       { delay: durationMinutes * 60 * 1000, jobId: `game-end:${session.id}` }
     );
     socketService.emitToUsers([userId], "time_attack:started", {
@@ -361,7 +363,7 @@ class GameService {
 
     await queueService.dispatch(
       "game-timers",
-      { sessionId ,questionId: "game-end"},
+      { sessionId, questionId: "game-end" },
       { delay: durationMinutes * 60 * 1000, jobId: `game-end:${sessionId}` }
     );
   }
@@ -400,7 +402,7 @@ class GameService {
         );
       }, delay);
     } else {
-      console.log(clientQuestion)
+      console.log(clientQuestion);
       socketService.emitToParticipant(
         participantId,
         "question:new",
@@ -575,11 +577,138 @@ class GameService {
   public async endGame(sessionId: string) {
     console.log(`[GameService] Ending game session ${sessionId}.`);
     await queueService.removeJob("game-timers", `game-end:${sessionId}`);
+
     const state = await stateManager.get(sessionId);
-    if (!state) return;
+
+    if (!state) {
+      console.warn(
+        `[GameService] No state found for session ${sessionId} during endGame. Aborting.`
+      );
+      return;
+    }
+    console.log(state.gameMode);
+    // --- ELO RATING UPDATE LOGIC ---
+    // Only run for competitive 1v1 game modes.
+    if (
+      state.gameMode === GameMode.QUICK_DUEL ||
+      state.gameMode === GameMode.FASTEST_FINGER_FIRST
+    ) {
+      try {
+        const participantIdsInGame = Object.keys(state.scores);
+
+        // 1. Validate that there are exactly two players.
+        if (participantIdsInGame.length === 2) {
+          const participants = await prisma.gameParticipant.findMany({
+            where: { id: { in: participantIdsInGame } },
+            select: { id: true, userId: true },
+          });
+
+          if (participants.length !== 2) {
+            throw new Error(
+              `Expected to find 2 participants in DB, but found ${participants.length}.`
+            );
+          }
+
+          const playerUserIds = participants.map((p) => p.userId);
+          const [player1UserId, player2UserId] = playerUserIds;
+
+          const playerProfiles = await prisma.userProfile.findMany({
+            where: { userId: { in: playerUserIds } },
+            select: { userId: true, eloRating: true },
+          });
+
+          if (playerProfiles.length !== 2) {
+            throw new Error(
+              `Could not find UserProfiles for both players. IDs: ${playerUserIds.join(
+                ", "
+              )}`
+            );
+          }
+
+          const player1Profile = playerProfiles.find(
+            (p) => p.userId === player1UserId
+          )!;
+          const player2Profile = playerProfiles.find(
+            (p) => p.userId === player2UserId
+          )!;
+
+          // --- NORMALIZATION LOGIC ---
+          // 4. Get raw scores and normalize them to 1, 0.5, or 0.
+          const player1ParticipantId = participants.find(
+            (p) => p.userId === player1UserId
+          )!.id;
+          const player2ParticipantId = participants.find(
+            (p) => p.userId === player2UserId
+          )!.id;
+
+          const player1RawScore = state.scores[player1ParticipantId];
+          const player2RawScore = state.scores[player2ParticipantId];
+
+          let player1NormalizedScore: number;
+          if (player1RawScore > player2RawScore) {
+            player1NormalizedScore = 1; // Player 1 wins
+          } else if (player1RawScore < player2RawScore) {
+            player1NormalizedScore = 0; // Player 1 loses
+          } else {
+            player1NormalizedScore = 0.5; // Draw
+          }
+
+          console.log(
+            `[ELO Update] Raw Scores - P1: ${player1RawScore}, P2: ${player2RawScore}`
+          );
+          console.log(
+            `[ELO Update] Normalized Score for P1: ${player1NormalizedScore}`
+          );
+          // --- END OF NORMALIZATION ---
+
+          // 5. Calculate new ELO ratings using the NORMALIZED score.
+          const [newPlayer1Elo, newPlayer2Elo] = calculateElo(
+            player1Profile.eloRating,
+            player2Profile.eloRating,
+            player1NormalizedScore // Pass the normalized score here
+          );
+
+          console.log(
+            `[ELO Update] Calculated ELOs - P1: ${player1Profile.eloRating} -> ${newPlayer1Elo}, P2: ${player2Profile.eloRating} -> ${newPlayer2Elo}`
+          );
+
+          // 6. Update both players' ELO ratings in a transaction.
+          await prisma.$transaction([
+            prisma.userProfile.update({
+              where: { userId: player1Profile.userId },
+              data: { eloRating: newPlayer1Elo },
+            }),
+            prisma.userProfile.update({
+              where: { userId: player2Profile.userId },
+              data: { eloRating: newPlayer2Elo },
+            }),
+          ]);
+
+          console.log(
+            `[ELO Update] Successfully updated ELO ratings in the database.`
+          );
+
+          // 7. Clear relevant cached leaderboards.
+          await leaderboardService.clearGlobalLeaderboardCache();
+          await leaderboardService.clearUserCache(player1UserId);
+          await leaderboardService.clearUserCache(player2UserId);
+        } else {
+          console.log(
+            `[ELO Update] Skipping ELO update for game ${sessionId}: not a 2-player match.`
+          );
+        }
+      } catch (error) {
+        console.error(
+          `[ELO Update] Failed to update ELO ratings for session ${sessionId}:`,
+          error
+        );
+      }
+    }
+    // --- END OF ELO RATING UPDATE LOGIC ---
 
     await stateManager.del(sessionId);
     await sessionManager.end(sessionId, state.scores);
+
     if (state.gameMode === GameMode.PRACTICE) {
       const participantId = Object.keys(state.results)[0];
       const finalResultsArray = state.results[participantId] || [];
@@ -588,9 +717,9 @@ class GameService {
         results: finalResultsArray,
       });
       console.log(
-        `[GameService] Emitted 'practice:finished' to room ${sessionId} with corrected results payload.`
+        `[GameService] Emitted 'practice:finished' to room ${sessionId}.`
       );
-      return; // Exit after handling practice mode specifically
+      return;
     }
 
     let eventName: string;

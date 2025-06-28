@@ -2,7 +2,7 @@
 
 import prisma from "@/lib/prisma/client";
 import { GameMode, GameStatus, Difficulty } from "@prisma/client";
-import { gameService } from "@/lib/services/game.service"; // Ensure this path is correct
+import { gameService } from "@/lib/services/game/game.service"; // Ensure this path is correct
 import { socketService } from "@/lib/websocket/socket.service"; // Ensure this path is correct
 import { queueService } from "@/lib/queue/config"; // Ensure this path is correct
 
@@ -113,7 +113,7 @@ class LobbyService {
     // Input validation (now robust for all required fields)
     if (!Object.values(Difficulty).includes(difficulty))
       throw new Error("Invalid difficulty selected.");
-    if (![1,2, 5, 10].includes(durationMinutes))
+    if (![1, 2, 5, 10].includes(durationMinutes))
       throw new Error(
         "Invalid duration selected. Must be 2, 5, or 10 minutes."
       );
@@ -456,7 +456,8 @@ class LobbyService {
     });
     // Delegate actual game start logic to gameService (e.g., generate questions, set scores)
     console.log(
-      `[LobbyService] Starting group game for lobby ${sessionId} with  participants.`);
+      `[LobbyService] Starting group game for lobby ${sessionId} with  participants.`
+    );
 
     await gameService.startGroupGame(updatedSession.id);
     console.log(

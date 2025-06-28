@@ -1,6 +1,5 @@
 // This is the complete and final Prisma schema for your Quiz App Service.
-// It is designed to work with a separate Authentication microservice.
-// It includes all features and corrects all previous syntax errors.
+// It includes all existing models and adds the full Social System with corrected formatting.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,10 +10,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==========================================================
+// === 1. ENUMS (Correctly Formatted) =======================
+// ==========================================================
 
-// ==========================================================
-// === 1. ENUMS (Defined at the top for best practice) ======
-// ==========================================================
 enum ExperienceLevel {
   BEGINNER
   INTERMEDIATE
@@ -31,8 +30,8 @@ enum GameMode {
 
 enum GameStatus {
   WAITING
-  LOBBY             
-  READY_COUNTDOWN   
+  LOBBY
+  READY_COUNTDOWN
   ACTIVE
   FINISHED
   CANCELLED
@@ -67,19 +66,51 @@ enum QuestType {
   STORY
 }
 
-enum FriendshipStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
-  BLOCKED
-}
-
 enum TournamentFormat {
   SINGLE_ELIMINATION
   DOUBLE_ELIMINATION
   ROUND_ROBIN
 }
 
+// NEW Social System Enums (Correctly Formatted)
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+enum ChatRoomType {
+  DM
+  GROUP
+  GAME
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+}
+
+enum LeaderboardTimeframe {
+  GLOBAL
+  DAILY
+  WEEKLY
+  MONTHLY
+  FRIENDS
+  CATEGORY
+}
+
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+  REWARDED
+}
+enum ChatRoomMemberRole {
+  ADMIN
+  MEMBER
+}
 
 // ==========================================================
 // === 2. MODELS ============================================
@@ -87,62 +118,66 @@ enum TournamentFormat {
 
 // --- User Profile & Settings ---
 model UserProfile {
-  id                   String    @id @default(cuid())
-  userId               String    @unique
-  bio                  String?   @db.Text
+  id                   String            @id @default(cuid())
+  userId               String            @unique
+  bio                  String?           @db.Text
   avatarUrl            String?
   location             String?
-  name                 String?  
-  username             String?  
+  name                 String?
+  username             String?
   website              String?
-  experienceLevel      ExperienceLevel @default(BEGINNER)
-  xp                   Int       @default(0)
-  eloRating            Int       @default(1200)
-  level                Int       @default(1)
+  experienceLevel      ExperienceLevel   @default(BEGINNER)
+  xp                   Int               @default(0)
+  eloRating            Int               @default(1200)
+  level                Int               @default(1)
   notificationSettings Json?
   privacySettings      Json?
-  
-  // Fields for the resumable onboarding flow
   onboardingState      Json?
   interestAreas        String[]
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  
+  // Existing Relations
   gameParticipants     GameParticipant[]
   achievements         UserAchievement[]
   questProgress        UserQuestProgress[]
   moduleProgress       UserModuleProgress[]
   tournamentEntries    TournamentParticipant[]
-  friendshipsSent      Friendship[]      @relation("Requester")
-  friendshipsReceived  Friendship[]      @relation("Receiver")
-  sentMessages         Message[]         @relation("Sender")
   inventory            UserInventoryItem[]
-  referralsMade        Referral[]        @relation("Referrer")
-  referralsReceived    Referral[]        @relation("Referee")
   tournamentMatchesP1  TournamentMatch[] @relation("MatchPlayer1")
   tournamentMatchesP2  TournamentMatch[] @relation("MatchPlayer2")
   tournamentMatchesWon TournamentMatch[] @relation("MatchWinner")
+
+  // Social System Relations
+  sentFriendRequests     FriendRequest[]  @relation("SentRequests")
+  receivedFriendRequests FriendRequest[]  @relation("ReceivedRequests")
+  friendships1           Friendship[]     @relation("User1Friends")
+  friendships2           Friendship[]     @relation("User2Friends")
+  chatRoomMembers        ChatRoomMember[]
+  sentMessages           Message[]        @relation("MessageSender")
+  leaderboardEntries     LeaderboardEntry[]
+  referralsMade          Referral[]       @relation("ReferrerProfile")
+  referralsReceived      Referral[]       @relation("RefereeProfile")
 }
 
 // --- Core Game System ---
 model GameSession {
-  id           String      @id @default(cuid())
-  mode         GameMode
-  status       GameStatus  @default(LOBBY)
-  roomCode     String?     @unique
-  createdAt    DateTime    @default(now())
-  finishedAt   DateTime?
-  difficulty   Difficulty?
-  hostId             String?     
-  minPlayers         Int?    
-  maxPlayers         Int?      
-  durationMinutes    Int?       
-  countdownStartTime DateTime?   
-  participants GameParticipant[]
-  answers      GameAnswer[]
-  chatMessages Message[]
-  invites      GameSessionInvite[]
+  id                 String              @id @default(cuid())
+  mode               GameMode
+  status             GameStatus          @default(LOBBY)
+  roomCode           String?             @unique
+  createdAt          DateTime            @default(now())
+  finishedAt         DateTime?
+  difficulty         Difficulty?
+  hostId             String?
+  minPlayers         Int?
+  maxPlayers         Int?
+  durationMinutes    Int?
+  countdownStartTime DateTime?
+  participants       GameParticipant[]
+  answers            GameAnswer[]
+  invites            GameSessionInvite[]
+  chatRoom           ChatRoom?           @relation("GameSessionChat")
 }
 
 model GameParticipant {
@@ -155,26 +190,6 @@ model GameParticipant {
   gameSession   GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
   answers       GameAnswer[]
   @@unique([userId, gameSessionId])
-}
-
-model GameAnswer {
-  id             String      @id @default(cuid())
-  isCorrect      Boolean
-  responseTimeMs Int?
-  participantId  String
-  questionId     String
-  gameSessionId  String
-  participant    GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  question       Question        @relation(fields: [questionId], references: [id])
-  gameSession    GameSession     @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
-}
-
-model GameSessionInvite {
-  id            String      @id @default(cuid())
-  gameSessionId String
-  invitedUserId String
-  gameSession   GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
-  @@unique([gameSessionId, invitedUserId])
 }
 
 // --- Content & Learning System ---
@@ -196,8 +211,8 @@ model Question {
   category    Category      @relation(fields: [categoryId], references: [id])
   options     Option[]
   answers     GameAnswer[]
-  createdAt   DateTime      @default(now()) // <-- Add this line
-  learningTip     String?   // <-- ADD THIS FIELD for learning tips
+  createdAt   DateTime      @default(now())
+  learningTip String?
 }
 
 model Option {
@@ -206,6 +221,114 @@ model Option {
   isCorrect  Boolean
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+// --- Social & Community System ---
+
+model FriendRequest {
+  id          String              @id @default(cuid())
+  status      FriendRequestStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  requesterId String
+  receiverId  String
+  requester   UserProfile         @relation("SentRequests", fields: [requesterId], references: [userId], onDelete: Cascade)
+  receiver    UserProfile         @relation("ReceivedRequests", fields: [receiverId], references: [userId], onDelete: Cascade)
+  @@unique([requesterId, receiverId])
+}
+
+model Friendship {
+  id        String      @id @default(cuid())
+  createdAt DateTime    @default(now())
+  user1Id   String
+  user2Id   String
+  user1     UserProfile @relation("User1Friends", fields: [user1Id], references: [userId], onDelete: Cascade)
+  user2     UserProfile @relation("User2Friends", fields: [user2Id], references: [userId], onDelete: Cascade)
+  @@unique([user1Id, user2Id])
+}
+
+model ChatRoom {
+  id            String         @id @default(cuid())
+  type          ChatRoomType
+  name          String?
+  createdAt     DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt // <-- ADD THIS LINE
+  members       ChatRoomMember[]
+  messages      Message[]
+  
+  gameSession   GameSession?   @relation("GameSessionChat", fields: [gameSessionId], references: [id])
+  gameSessionId String?        @unique
+}
+
+model ChatRoomMember {
+  id         String      @id @default(cuid())
+  chatRoomId String
+  userId     String
+  joinedAt   DateTime    @default(now())
+  chatRoom   ChatRoom    @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  userProfile UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+   role       ChatRoomMemberRole @default(MEMBER)
+  @@unique([chatRoomId, userId])
+}
+
+model Message {
+  id         String      @id @default(cuid())
+  content    String      @db.Text
+  createdAt  DateTime    @default(now())
+  type       MessageType @default(TEXT)
+  senderId   String
+  chatRoomId String
+  sender     UserProfile @relation("MessageSender", fields: [senderId], references: [userId], onDelete: Cascade)
+  chatRoom   ChatRoom    @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+}
+
+model LeaderboardEntry {
+  id          String             @id @default(cuid())
+  userId      String
+  score       Int                @default(0)
+  rank        Int?
+  timeframe   LeaderboardTimeframe
+  category    String?
+  lastUpdated DateTime           @updatedAt
+  userProfile UserProfile        @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  @@unique([userId, timeframe, category])
+  @@index([score])
+}
+
+model GameSessionInvite {
+  id            String      @id @default(cuid())
+  gameSessionId String
+  invitedUserId String
+  gameSession   GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([gameSessionId, invitedUserId])
+}
+
+
+model Referral {
+  id            String         @id @default(cuid())
+  code          String         @unique
+  status        ReferralStatus @default(PENDING)
+  createdAt     DateTime       @default(now())
+  rewardGranted Boolean        @default(false)
+  referrerId    String
+  refereeId     String         @unique
+  referrer      UserProfile    @relation("ReferrerProfile", fields: [referrerId], references: [userId], onDelete: Cascade)
+  referee       UserProfile    @relation("RefereeProfile", fields: [refereeId], references: [userId], onDelete: Cascade)
+}
+
+
+// --- Other Existing Models ---
+model GameAnswer {
+  id             String      @id @default(cuid())
+  isCorrect      Boolean
+  responseTimeMs Int?
+  participantId  String
+  questionId     String
+  gameSessionId  String
+  participant    GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  question       Question        @relation(fields: [questionId], references: [id])
+  gameSession    GameSession     @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
 }
 
 model LearningModule {
@@ -230,7 +353,6 @@ model UserModuleProgress {
   @@unique([userId, moduleId])
 }
 
-// --- Gamification & Progression ---
 model Achievement {
   id          String            @id @default(cuid())
   title       String            @unique
@@ -293,39 +415,6 @@ model UserInventoryItem {
   @@unique([userId, itemId])
 }
 
-// --- Social & Community System ---
-model Friendship {
-  id          String           @id @default(cuid())
-  status      FriendshipStatus @default(PENDING)
-  createdAt   DateTime         @default(now())
-  requesterId String
-  receiverId  String
-  requester   UserProfile      @relation("Requester", fields: [requesterId], references: [userId], onDelete: Cascade)
-  receiver    UserProfile      @relation("Receiver", fields: [receiverId], references: [userId], onDelete: Cascade)
-  @@unique([requesterId, receiverId])
-}
-
-model Message {
-  id            String       @id @default(cuid())
-  content       String       @db.Text
-  createdAt     DateTime     @default(now())
-  senderId      String
-  gameSessionId String?
-  sender        UserProfile  @relation("Sender", fields: [senderId], references: [userId], onDelete: Cascade)
-  gameSession   GameSession? @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
-}
-
-model Referral {
-  id         String    @id @default(cuid())
-  status     String
-  createdAt  DateTime  @default(now())
-  referrerId String
-  refereeId  String    @unique
-  referrer   UserProfile @relation("Referrer", fields: [referrerId], references: [userId], onDelete: Cascade)
-  referee    UserProfile @relation("Referee", fields: [refereeId], references: [userId], onDelete: Cascade)
-}
-
-// --- Competition & Tournament System ---
 model Tournament {
   id           String                  @id @default(cuid())
   name         String

@@ -1,6 +1,6 @@
-import prisma from '../prisma/client';
-import { queueService } from '../queue/config';
-import { OnboardingInput } from '@/dtos/onboarding.dto';
+import prisma from "../../prisma/client";
+import { queueService } from "../../queue/config";
+import { OnboardingInput } from "@/dtos/onboarding.dto";
 
 interface OnboardingState {
   stepsCompleted: Record<string, boolean>;
@@ -9,7 +9,11 @@ interface OnboardingState {
 
 class OnboardingService {
   // Accept name and username from microservice and always use them
-  private async getOrCreateProfile(userId: string, name?: string, username?: string) {
+  private async getOrCreateProfile(
+    userId: string,
+    name?: string,
+    username?: string
+  ) {
     let profile = await prisma.userProfile.findUnique({ where: { userId } });
     if (profile) {
       // Update name/username if changed in microservice
@@ -24,15 +28,20 @@ class OnboardingService {
     return prisma.userProfile.create({
       data: {
         userId,
-        name,       // <-- UPDATED: set name from microservice
-        username,   // <-- UPDATED: set username from microservice
+        name, // <-- UPDATED: set name from microservice
+        username, // <-- UPDATED: set username from microservice
         onboardingState: { stepsCompleted: {} },
       },
     });
   }
 
   // Accept name and username, always pass from API route
-  public async updateProgress(userId: string, validatedData: OnboardingInput, name?: string, username?: string) {
+  public async updateProgress(
+    userId: string,
+    validatedData: OnboardingInput,
+    name?: string,
+    username?: string
+  ) {
     const { step, data } = validatedData;
     const userProfile = await this.getOrCreateProfile(userId, name, username); // <-- UPDATED: pass name/username
     console.log(userProfile);
@@ -40,22 +49,27 @@ class OnboardingService {
       let updateData: any = {};
 
       switch (step) {
-        case 'profileSetup':
-        case 'experienceAssessment':
+        case "profileSetup":
+        case "experienceAssessment":
           updateData = data;
           // Always update name/username from microservice
-          updateData.name = name;         // <-- UPDATED: always set name
+          updateData.name = name; // <-- UPDATED: always set name
           updateData.username = username; // <-- UPDATED: always set username
           break;
-        case 'gamePreferences':
+        case "gamePreferences":
           updateData.notificationSettings = data.notificationPreferences;
           break;
-        case 'practiceGame':
+        case "practiceGame":
           break;
       }
 
-      const currentState = (userProfile.onboardingState as OnboardingState) || { stepsCompleted: {} };
-      const newStepsCompleted = { ...currentState.stepsCompleted, [step]: true };
+      const currentState = (userProfile.onboardingState as OnboardingState) || {
+        stepsCompleted: {},
+      };
+      const newStepsCompleted = {
+        ...currentState.stepsCompleted,
+        [step]: true,
+      };
       const updatedState: OnboardingState = {
         ...currentState,
         stepsCompleted: newStepsCompleted,
@@ -80,12 +94,23 @@ class OnboardingService {
     };
   }
 
-  private async checkForCompletion(userId: string, state: OnboardingState, tx: any) {
-    const requiredSteps = ['profileSetup', 'experienceAssessment', 'gamePreferences', 'practiceGame'];
-    const allStepsComplete = requiredSteps.every(s => state.stepsCompleted?.[s]);
+  private async checkForCompletion(
+    userId: string,
+    state: OnboardingState,
+    tx: any
+  ) {
+    const requiredSteps = [
+      "profileSetup",
+      "experienceAssessment",
+      "gamePreferences",
+      "practiceGame",
+    ];
+    const allStepsComplete = requiredSteps.every(
+      (s) => state.stepsCompleted?.[s]
+    );
 
     if (allStepsComplete && !state.bonusAwarded) {
-      await queueService.dispatch('onboarding-jobs', { userId });
+      await queueService.dispatch("onboarding-jobs", { userId });
       state.bonusAwarded = true;
       await tx.userProfile.update({
         where: { userId },

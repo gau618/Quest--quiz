@@ -163,12 +163,22 @@ io.on("connection", (socket: Socket) => {
 );
 
 
-  socket.on("chat:typing", (data: { chatRoomId: string }) => {
-    socket.to(data.chatRoomId).emit("chat:typing_indicator", {
-      chatRoomId: data.chatRoomId,
-      user: { userId },
-    });
+socket.on("chat:typing", (data: { chatRoomId: string }) => {
+  // Broadcast to everyone else in the room that this user is typing
+  socket.to(data.chatRoomId).emit("chat:typing_indicator", {
+    chatRoomId: data.chatRoomId,
+    user: { userId }, // We can get the username on the client from existing data
   });
+});
+
+// --- ADD THIS NEW "stop_typing" LISTENER ---
+socket.on("chat:stop_typing", (data: { chatRoomId: string }) => {
+  // Broadcast to everyone else that this user has stopped typing
+  socket.to(data.chatRoomId).emit("chat:stop_typing_indicator", {
+    chatRoomId: data.chatRoomId,
+    user: { userId },
+  });
+});
 
   socket.on("disconnect", (reason) => {
     console.log(`[Socket.IO] User ${userId} disconnected. Reason: ${reason}`);

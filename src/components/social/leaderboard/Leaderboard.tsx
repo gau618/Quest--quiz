@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 
+// --- Type Definitions ---
 interface LeaderboardEntryData {
   userId: string;
   username?: string;
@@ -19,21 +20,11 @@ interface LeaderboardEntry extends LeaderboardEntryData {
 type LeaderboardType = 'global' | 'friends';
 type OrderByType = 'eloRating' | 'xp';
 
-// Helper to get token from localStorage safely on the client
-const getToken = () => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('gp_token');
-};
+// --- Helper Functions ---
+const getToken = () => (typeof window !== 'undefined' ? localStorage.getItem('gp_token') : null);
+const getUserId = () => (typeof window !== 'undefined' ? localStorage.getItem('gp_userId') : null);
 
-// Helper to get userId. For this example, we'll assume it's also stored.
-// In a real app, you would get this from decoding the JWT or from an auth context.
-const getUserId = () => {
-  if (typeof window === 'undefined') return null;
-  // Replace this with your actual method of getting the user's ID
-  return localStorage.getItem('gp_userId'); 
-};
-
-
+// --- Main Component ---
 export function Leaderboard() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +32,6 @@ export function Leaderboard() {
   const [type, setType] = useState<LeaderboardType>('global');
   const [orderBy, setOrderBy] = useState<OrderByType>('eloRating');
 
-  // Memoize current user ID to avoid re-running effects unnecessarily
   const currentUserId = useMemo(() => getUserId(), []);
 
   useEffect(() => {
@@ -49,29 +39,23 @@ export function Leaderboard() {
       setLoading(true);
       setError(null);
       
-      let url = '';
+      let url = `/api/leaderboard/${type}?orderBy=${orderBy}`;
       const headers: { [key: string]: string } = {};
 
-      if (type === 'global') {
-        url = `/api/leaderboard/global?orderBy=${orderBy}`;
-      } else if (type === 'friends') {
+      if (type === 'friends') {
         const token = getToken();
         if (!token) {
           setError('You must be logged in to view the friends leaderboard.');
           setLoading(false);
           return;
         }
-        url = `/api/leaderboard/friends?orderBy=${orderBy}`;
         headers['Authorization'] = `Bearer ${token}`;
       }
 
       try {
         const { data } = await axios.get(url, { headers });
         const rankedLeaderboard = data.leaderboard.map(
-          (entry: LeaderboardEntryData, index: number) => ({
-            ...entry,
-            rank: index + 1,
-          })
+          (entry: LeaderboardEntryData, index: number) => ({ ...entry, rank: index + 1 })
         );
         setLeaderboard(rankedLeaderboard);
       } catch (err: any) {
@@ -82,55 +66,107 @@ export function Leaderboard() {
     };
 
     fetchLeaderboard();
-  }, [type, orderBy]); // Re-fetch only when type or orderBy changes
+  }, [type, orderBy]);
+
+  const getRankIcon = (rank: number) => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return `#${rank}`;
+  };
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px', maxWidth: '600px', margin: 'auto', border: '1px solid #ddd', borderRadius: '8px' }}>
-      <h2>Leaderboard</h2>
+    <div style={styles.container}>
+      <header style={styles.header}>
+        <h2 style={styles.title}>Leaderboard</h2>
+        <div style={styles.filterGroup}>
+          <div style={styles.toggleSwitch}>
+            <button onClick={() => setType('global')} style={toggleButtonStyle(type === 'global')}>Global</button>
+            <button onClick={() => setType('friends')} style={toggleButtonStyle(type === 'friends')}>Friends</button>
+          </div>
+          <div style={styles.toggleSwitch}>
+            <button onClick={() => setOrderBy('eloRating')} style={toggleButtonStyle(orderBy === 'eloRating')}>ELO</button>
+            <button onClick={() => setOrderBy('xp')} style={toggleButtonStyle(orderBy === 'xp')}>XP</button>
+          </div>
+        </div>
+      </header>
 
-      <div style={{ marginBottom: '15px', display: 'flex', gap: '10px' }}>
-        <select value={type} onChange={(e) => setType(e.target.value as LeaderboardType)} style={{ padding: '8px' }}>
-          <option value="global">Global</option>
-          <option value="friends">Friends</option>
-        </select>
-        <select value={orderBy} onChange={(e) => setOrderBy(e.target.value as OrderByType)} style={{ padding: '8px' }}>
-          <option value="eloRating">By ELO Rating</option>
-          <option value="xp">By XP</option>
-        </select>
-      </div>
+      {loading && <div className="leaderboard-loader" />}
+      {error && <p style={styles.errorText}>Error: {error}</p>}
 
-      {loading && <p>Loading leaderboard...</p>}
-      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
-
-      {!loading && !error && leaderboard.length === 0 && <p>No data available for this leaderboard.</p>}
-
-      {!loading && !error && leaderboard.length > 0 && (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f2f2f2' }}>
-              <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>Rank</th>
-              <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>Player</th>
-              <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'right' }}>{orderBy === 'eloRating' ? 'ELO' : 'XP'}</th>
-              <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'right' }}>Level</th>
-            </tr>
-          </thead>
-          <tbody>
+      {!loading && !error && (
+        leaderboard.length > 0 ? (
+          <ul style={styles.list}>
             {leaderboard.map((entry) => (
-              <tr key={entry.userId} style={{ background: entry.userId === currentUserId ? '#e0f7fa' : 'white' }}>
-                <td style={{ padding: '10px', border: '1px solid #ddd' }}>{entry.rank}</td>
-                <td style={{ padding: '10px', border: '1px solid #ddd', display: 'flex', alignItems: 'center' }}>
-                  {entry.avatarUrl && <img src={entry.avatarUrl} alt="Avatar" style={{ width: '30px', height: '30px', borderRadius: '50%', marginRight: '10px' }} />}
-                  <span>{entry.username || entry.name || 'Unknown User'}</span>
-                </td>
-                <td style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'right', fontWeight: 'bold' }}>
-                  {orderBy === 'eloRating' ? entry.eloRating : entry.xp}
-                </td>
-                <td style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'right' }}>{entry.level}</td>
-              </tr>
+              <li key={entry.userId} style={{...styles.listItem, ...(entry.userId === currentUserId ? styles.currentUserItem : {})}}>
+                <div style={rankStyle(entry.rank)}>
+                  {getRankIcon(entry.rank)}
+                </div>
+                <img
+                  src={entry.avatarUrl || `https://api.dicebear.com/8.x/initials/svg?seed=${entry.username || entry.name}`}
+                  alt={entry.username || 'Avatar'}
+                  style={styles.avatar}
+                />
+                <div style={styles.playerInfo}>
+                  <span style={styles.playerName}>{entry.username || entry.name || 'Unknown User'}</span>
+                  <span style={styles.playerLevel}>Level {entry.level}</span>
+                </div>
+                <div style={styles.score}>
+                  {orderBy === 'eloRating' ? entry.eloRating.toLocaleString() : entry.xp.toLocaleString()}
+                  <span style={styles.scoreLabel}>{orderBy === 'eloRating' ? ' ELO' : ' XP'}</span>
+                </div>
+              </li>
             ))}
-          </tbody>
-        </table>
+          </ul>
+        ) : (
+          <p style={styles.emptyState}>No data available for this leaderboard.</p>
+        )
       )}
     </div>
   );
 }
+
+// --- Best UI Styles ---
+const styles: { [key: string]: React.CSSProperties } = {
+  container: { fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", background: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' },
+  title: { margin: 0, fontSize: '1.75rem', fontWeight: 700 },
+  filterGroup: { display: 'flex', gap: '12px' },
+  toggleSwitch: { display: 'flex', background: '#f0f2f5', borderRadius: '8px', padding: '4px' },
+  list: { listStyle: 'none', padding: 0, margin: 0 },
+  listItem: { display: 'flex', alignItems: 'center', padding: '12px', borderRadius: '8px', transition: 'background-color 0.2s', marginBottom: '8px' },
+  currentUserItem: { backgroundColor: '#e7f3ff', border: '1px solid #007bff' },
+  avatar: { width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', background: '#eee', marginRight: '16px' },
+  playerInfo: { flex: 1, display: 'flex', flexDirection: 'column' },
+  playerName: { fontWeight: 600, fontSize: '1rem' },
+  playerLevel: { color: '#65676b', fontSize: '0.85rem' },
+  score: { fontSize: '1.1rem', fontWeight: 'bold' },
+  scoreLabel: { fontSize: '0.8rem', fontWeight: 'normal', color: '#65676b' },
+  errorText: { color: '#d93025', fontWeight: 'bold', textAlign: 'center' },
+  emptyState: { textAlign: 'center', color: '#888', padding: '40px 0' },
+};
+
+const toggleButtonStyle = (isActive: boolean): React.CSSProperties => ({
+  padding: '8px 16px',
+  border: 'none',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  fontWeight: isActive ? 600 : 400,
+  background: isActive ? '#fff' : 'transparent',
+  color: isActive ? '#007bff' : '#333',
+  boxShadow: isActive ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+});
+
+const rankStyle = (rank: number): React.CSSProperties => {
+  const baseStyle: React.CSSProperties = {
+    width: '40px',
+    textAlign: 'center',
+    fontSize: '1.2rem',
+    fontWeight: 'bold',
+    marginRight: '16px',
+  };
+  if (rank === 1) return { ...baseStyle, color: '#FFD700' }; // Gold
+  if (rank === 2) return { ...baseStyle, color: '#C0C0C0' }; // Silver
+  if (rank === 3) return { ...baseStyle, color: '#CD7F32' }; // Bronze
+  return baseStyle;
+};

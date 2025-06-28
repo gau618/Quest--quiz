@@ -252,10 +252,10 @@ model ChatRoom {
   type          ChatRoomType
   name          String?
   createdAt     DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt // <-- ADD THIS LINE
+  updatedAt     DateTime @updatedAt
   members       ChatRoomMember[]
   messages      Message[]
-  
+  description   String?
   gameSession   GameSession?   @relation("GameSessionChat", fields: [gameSessionId], references: [id])
   gameSessionId String?        @unique
 }

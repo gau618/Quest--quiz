@@ -1,6 +1,6 @@
 // src/lib/services/chat.service.ts
 import prisma from '@/lib/prisma/client';
-import { ChatRoomType, MessageType } from '@prisma/client';
+import { ChatRoomType, MessageType, ChatRoomMemberRole } from '@prisma/client';
 import { notificationService } from '../notification/notification.service';
 
 export const chatService = {
@@ -19,31 +19,44 @@ export const chatService = {
       data: { type: ChatRoomType.DM, members: { create: [{ userId: user1Id }, { userId: user2Id }] } },
     });
   },
-
   /**
-   * Creates a new Group Chat room.
+   * Creates a new Group Chat room and assigns the creator as ADMIN.
    */
-  // In chat.service.ts
-async createGroupChatRoom(creatorId: string, name: string, memberIds: string[]) {
-  // ... (validation logic remains the same)
-  const allMemberIds = Array.from(new Set([creatorId, ...memberIds]));
+ async createGroupChatRoom(creatorId: string, name: string, memberIds: string[]) {
+    if (!name.trim()) throw new Error("Group chat name cannot be empty.");
+    if (memberIds.length === 0) throw new Error("A group must have at least one other member.");
+    
+    const allMemberIds = Array.from(new Set([creatorId, ...memberIds]));
 
-  return prisma.chatRoom.create({
-    data: {
-      type: ChatRoomType.GROUP,
-      name,
-      // --- UPDATED LOGIC ---
-      members: {
-        create: allMemberIds.map(id => ({
-          userId: id,
-          // Assign the ADMIN role to the creator, others are MEMBERS
-          role: id === creatorId ? 'ADMIN' : 'MEMBER',
-        })),
+    return prisma.chatRoom.create({
+      data: {
+        type: ChatRoomType.GROUP,
+        name,
+        members: {
+          create: allMemberIds.map(id => ({
+            userId: id,
+            role: id === creatorId ? 'ADMIN' : 'MEMBER',
+          })),
+        },
       },
-    },
-  });
-},
-
+      include: {
+        members: {
+          select: {
+            userId: true,
+            role: true, // Select 'role' from the ChatRoomMember level
+            userProfile: { // Select user details from the nested UserProfile
+              select: {
+                userId: true,
+                username: true,
+                avatarUrl: true
+              }
+            }
+          }
+        },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 }
+      }
+    });
+  },
 
   /**
    * Fetches all chat rooms for a user, including the last message for a preview.
@@ -96,5 +109,105 @@ async createGroupChatRoom(creatorId: string, name: string, memberIds: string[]) 
 
     notificationService.sendToRoom(chatRoomId, 'chat:receive_message', newMessage);
     return newMessage;
+  },
+  
+
+  /**
+   * Deletes a group chat, but only if the user is an admin.
+   */
+  async deleteGroupAsAdmin(userId: string, chatRoomId: string) {
+    const member = await prisma.chatRoomMember.findUnique({
+      where: { chatRoomId_userId: { chatRoomId, userId } },
+    });
+
+    if (!member) {
+      throw new Error("Access Denied: You are not a member of this group.");
+    }
+
+    if (member.role !== ChatRoomMemberRole.ADMIN) {
+      throw new Error("Permission Denied: Only group admins can delete the group.");
+    }
+
+    // Notify all members that the group is being deleted in real-time
+    notificationService.sendToRoom(chatRoomId, 'chat:group_deleted', { chatRoomId });
+
+    // Use a transaction to delete all related data atomically
+    await prisma.$transaction([
+      prisma.message.deleteMany({ where: { chatRoomId } }),
+      prisma.chatRoomMember.deleteMany({ where: { chatRoomId } }),
+      prisma.chatRoom.delete({ where: { id: chatRoomId } }),
+    ]);
+
+    return { success: true, message: "Group deleted successfully." };
+  },
+
+    async updateGroupDetails(userId: string, chatRoomId: string, data: { name?: string; description?: string }) {
+    const member = await prisma.chatRoomMember.findUnique({
+      where: { chatRoomId_userId: { chatRoomId, userId } },
+    });
+
+    if (!member || member.role !== 'ADMIN') {
+      throw new Error("Permission Denied: Only group admins can change group details.");
+    }
+
+    const updatedRoom = await prisma.chatRoom.update({
+      where: { id: chatRoomId },
+      data: {
+        name: data.name,
+        description: data.description,
+      },
+      // Include the full data to broadcast back to the clients
+      include: {
+        members: { select: { userId: true, role: true, userProfile: { select: { userId: true, username: true, avatarUrl: true } } } },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 }
+      }
+    });
+
+    // Notify all room members of the update in real-time
+    notificationService.sendToRoom(chatRoomId, 'chat:group_updated', { updatedRoom });
+    return updatedRoom;
+  },
+  
+  /**
+   * Removes a member from a group.
+   * Can be called by an admin to remove another user, or by a member to leave.
+   */
+  async removeMemberFromGroup(actingUserId: string, chatRoomId: string, memberToRemoveId: string) {
+    const actingUserMembership = await prisma.chatRoomMember.findUnique({
+      where: { chatRoomId_userId: { chatRoomId, userId: actingUserId } },
+    });
+
+    if (!actingUserMembership) {
+      throw new Error("Access Denied: You are not a member of this group.");
+    }
+
+    // Check permissions: Admin can remove anyone, Member can only remove themselves
+    const isAdmin = actingUserMembership.role === 'ADMIN';
+    const isSelfRemoval = actingUserId === memberToRemoveId;
+
+    if (!isSelfRemoval && !isAdmin) {
+      throw new Error("Permission Denied: You are not an admin.");
+    }
+
+    // Edge Case: Prevent the last admin from leaving or being removed
+    if (isSelfRemoval || isAdmin) {
+      const admins = await prisma.chatRoomMember.findMany({
+        where: { chatRoomId, role: 'ADMIN' },
+      });
+      if (admins.length === 1 && admins[0].userId === memberToRemoveId) {
+        throw new Error("A group must have at least one admin. Promote another member before leaving.");
+      }
+    }
+    
+    // Proceed with removal
+    await prisma.chatRoomMember.delete({
+      where: { chatRoomId_userId: { chatRoomId, userId: memberToRemoveId } },
+    });
+    // Notify all remaining room members
+    notificationService.sendToRoom(chatRoomId, 'chat:member_removed', { chatRoomId, removedUserId: memberToRemoveId });
+    // Also notify the removed user so their UI updates
+    notificationService.sendToUsers([memberToRemoveId], 'chat:you_were_removed', { chatRoomId });
+
+    return { success: true };
   },
 };

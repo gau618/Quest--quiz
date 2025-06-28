@@ -20,12 +20,24 @@ export const notificationService = {
    * @param event - The name of the socket event (e.g., 'notification:new').
    * @param payload - The data to send.
    */
-  sendToUser: (userIds: string | string[], event: string, payload: any) => {
+sendToUsers: (userIds: string | string[], event: string, payload: any) => {
     const ids = Array.isArray(userIds) ? userIds : [userIds];
     const message: IpcPayload = { target: 'user', ids, event, payload };
     redisPublisher.publish(IPC_CHANNEL, JSON.stringify(message));
     console.log(`[Notification Service] Published '${event}' to users: ${ids.join(', ')}`);
   },
+
+  /**
+   * @deprecated Use 'sendToUsers' instead. This is an alias for backward compatibility.
+   */
+  sendToUser: function(userIds: string | string[], event: string, payload: any) {
+    // --- THIS IS THE ALIAS FOR BACKWARD COMPATIBILITY ---
+    console.warn("Deprecation Warning: 'sendToUser' is deprecated. Please use 'sendToUsers' instead.");
+    // It simply calls the new, correctly named function.
+    this.sendToUsers(userIds, event, payload);
+  },
+
+
 
   /**
    * Publishes an event to all clients within a specific room.

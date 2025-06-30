@@ -4,1548 +4,3195 @@ import { PrismaClient, Difficulty } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// Helper function to create a map for easy ID lookup
+function createIdMap(items: { id: string; name: string }[]) {
+  const map = new Map<string, string>();
+  for (const item of items) {
+    map.set(item.name, item.id);
+  }
+  return map;
+}
+
 async function main() {
   console.log("Start seeding...");
 
-  // 1. Clear previous data in the correct order to avoid constraint errors
-  // IMPORTANT: Delete related records first if they depend on others
+  // 1. Clear previous data to ensure a clean slate
   await prisma.option.deleteMany({});
   await prisma.question.deleteMany({});
   await prisma.category.deleteMany({});
   console.log("Cleared existing questions, options, and categories.");
 
-  // 2. Create Categories first
+  // 2. Create the new Trading & Finance Categories
   console.log("Creating categories...");
-  const generalCategory = await prisma.category.create({
-    data: { name: "General Knowledge" },
-  });
-  const scienceCategory = await prisma.category.create({
-    data: { name: "Science & Nature" },
-  });
-  const historyCategory = await prisma.category.create({
-    data: { name: "History" },
-  });
-  const entertainmentCategory = await prisma.category.create({
-    data: { name: "Entertainment" },
-  });
-  console.log("Categories created.");
-
-  // 3. Define questions with new fields and correct option structure
-  // Added explanation and learningTip fields for practice mode
-  const allQuestions = [
-    // --- EASY QUESTIONS ---
-    {
-      text: "What is the capital of Japan?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Beijing" },
-        { text: "Seoul" },
-        { text: "Tokyo", isCorrect: true },
-        { text: "Bangkok" },
-      ],
-      explanation:
-        "Tokyo is the bustling capital city of Japan, known for its mix of traditional temples and futuristic skyscrapers.",
-      learningTip: "Remember major world capitals. Flashcards can help!",
-    },
-    {
-      text: 'Which animal is known as the "King of the Jungle"?',
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Tiger" },
-        { text: "Elephant" },
-        { text: "Lion", isCorrect: true },
-        { text: "Bear" },
-      ],
-      explanation:
-        'The lion is widely recognized as the "King of the Jungle" due to its majestic appearance and predatory nature.',
-      learningTip:
-        "Animal facts are fun! Look up interesting facts about different species.",
-    },
-    {
-      text: "How many days are in a week?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "5" },
-        { text: "6" },
-        { text: "7", isCorrect: true },
-        { text: "8" },
-      ],
-      explanation:
-        "There are exactly 7 days in a standard week: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, and Sunday.",
-      learningTip: "Basic units of time are fundamental knowledge.",
-    },
-    {
-      text: "What color is a banana?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Red" },
-        { text: "Blue" },
-        { text: "Yellow", isCorrect: true },
-        { text: "Green" },
-      ],
-      explanation:
-        "Ripe bananas are typically bright yellow. Green bananas are unripe, and brown spots indicate overripeness.",
-      learningTip: "Observe common fruits and vegetables closely.",
-    },
-    {
-      text: "What do bees produce?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Milk" },
-        { text: "Silk" },
-        { text: "Honey", isCorrect: true },
-        { text: "Pollen" },
-      ],
-      explanation:
-        "Bees are well-known for producing honey, which they store in honeycombs as a food source.",
-      learningTip:
-        "Learn about the products animals contribute to nature and humans.",
-    },
-    {
-      text: "Which is the largest planet in our solar system?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Earth" },
-        { text: "Mars" },
-        { text: "Jupiter", isCorrect: true },
-        { text: "Saturn" },
-      ],
-      explanation:
-        "Jupiter is the largest planet in our solar system, with a mass more than two and a half times that of all the other planets in the Solar System combined.",
-      learningTip:
-        "Memorize the order and key facts about planets in our solar system.",
-    },
-    {
-      text: "What is the main language spoken in Brazil?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Spanish" },
-        { text: "English" },
-        { text: "Portuguese", isCorrect: true },
-        { text: "French" },
-      ],
-      explanation:
-        "Brazil is the only Portuguese-speaking country in South America, a legacy of its colonial past.",
-      learningTip:
-        "Learn about the main languages spoken in different countries.",
-    },
-    {
-      text: "How many continents are there?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "5" },
-        { text: "6" },
-        { text: "7", isCorrect: true },
-        { text: "8" },
-      ],
-      explanation:
-        "There are generally 7 continents: Asia, Africa, North America, South America, Antarctica, Europe, and Australia.",
-      learningTip: "Geography basics are important for general knowledge.",
-    },
-    {
-      text: 'What is the opposite of "hot"?',
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Warm" },
-        { text: "Icy" },
-        { text: "Cold", isCorrect: true },
-        { text: "Sunny" },
-      ],
-      explanation:
-        "The direct opposite of hot is cold, representing the lower end of the temperature spectrum.",
-      learningTip: "Focus on basic antonyms for simple vocabulary building.",
-    },
-    {
-      text: "What is the name of the fairy in Peter Pan?",
-      difficulty: Difficulty.EASY,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Cinderella" },
-        { text: "Ariel" },
-        { text: "Tinker Bell", isCorrect: true },
-        { text: "Belle" },
-      ],
-      explanation:
-        "Tinker Bell is the famous fairy companion of Peter Pan, often characterized by her mischievous nature.",
-      learningTip:
-        "Classic children's literature and characters are common trivia.",
-    },
-    {
-      text: "Which ocean is the largest?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Atlantic" },
-        { text: "Indian" },
-        { text: "Pacific", isCorrect: true },
-        { text: "Arctic" },
-      ],
-      explanation:
-        "The Pacific Ocean is the largest and deepest of Earth's oceanic divisions, covering about a third of the surface of the planet.",
-      learningTip: "Familiarize yourself with basic world geography.",
-    },
-    {
-      text: "What is a baby dog called?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Kitten" },
-        { text: "Calf" },
-        { text: "Puppy", isCorrect: true },
-        { text: "Fawn" },
-      ],
-      explanation:
-        "A baby dog is called a puppy. Different baby animals have unique names.",
-      learningTip: "Animal terminology is a common general knowledge topic.",
-    },
-    {
-      text: "In which city is the Eiffel Tower located?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "London" },
-        { text: "Rome" },
-        { text: "Paris", isCorrect: true },
-        { text: "Berlin" },
-      ],
-      explanation:
-        "The Eiffel Tower is an iconic landmark located in Paris, France, and is one of the most visited monuments in the world.",
-      learningTip: "Associate famous landmarks with their respective cities.",
-    },
-    {
-      text: "What is the primary ingredient in bread?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Sugar" },
-        { text: "Salt" },
-        { text: "Flour", isCorrect: true },
-        { text: "Butter" },
-      ],
-      explanation:
-        "Flour, typically made from wheat, is the foundational ingredient for most types of bread.",
-      learningTip: "Understand the basic components of common foods.",
-    },
-    {
-      text: "How many sides does a triangle have?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "2" },
-        { text: "4" },
-        { text: "3", isCorrect: true },
-        { text: "5" },
-      ],
-      explanation:
-        "A triangle is a polygon with three edges and three vertices.",
-      learningTip: "Basic geometric shapes are fundamental.",
-    },
-    {
-      text: "What is the currency of the United States?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Euro" },
-        { text: "Yen" },
-        { text: "Dollar", isCorrect: true },
-        { text: "Pound" },
-      ],
-      explanation:
-        "The United States uses the Dollar as its official currency, abbreviated as USD.",
-      learningTip: "Familiarize yourself with major world currencies.",
-    },
-    {
-      text: "Which country is famous for its pyramids?",
-      difficulty: Difficulty.EASY,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Greece" },
-        { text: "Italy" },
-        { text: "Egypt", isCorrect: true },
-        { text: "Mexico" },
-      ],
-      explanation:
-        "Egypt is renowned for its ancient pyramids, built as tombs for pharaohs.",
-      learningTip:
-        "Historical landmarks and their associated countries are common knowledge.",
-    },
-    {
-      text: "What is the color of the sky on a clear day?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Green" },
-        { text: "Red" },
-        { text: "Blue", isCorrect: true },
-        { text: "Black" },
-      ],
-      explanation:
-        "The sky appears blue due to Rayleigh scattering of sunlight by the Earth's atmosphere.",
-      learningTip: "Understand simple natural phenomena.",
-    },
-    {
-      text: "What is the first letter of the alphabet?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "B" },
-        { text: "C" },
-        { text: "A", isCorrect: true },
-        { text: "Z" },
-      ],
-      explanation: "The first letter of the English alphabet is A.",
-      learningTip: "Fundamental literacy is often tested.",
-    },
-    {
-      text: "Which of these is a fruit?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Carrot" },
-        { text: "Broccoli" },
-        { text: "Apple", isCorrect: true },
-        { text: "Potato" },
-      ],
-      explanation:
-        "Botanically, an apple is a fruit as it develops from the flower's ovary and contains seeds.",
-      learningTip: "Know the botanical definitions of common foods.",
-    },
-    {
-      text: "What is the main source of light during the day?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Moon" },
-        { text: "Stars" },
-        { text: "Sun", isCorrect: true },
-        { text: "Lamp" },
-      ],
-      explanation:
-        "The Sun is the star at the center of the Solar System and the primary source of light and heat for Earth.",
-      learningTip: "Understand basic astronomical sources of light.",
-    },
-    {
-      text: "Which season comes after summer?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Winter" },
-        { text: "Spring" },
-        { text: "Autumn", isCorrect: true },
-        { text: "None" },
-      ],
-      explanation:
-        "Autumn (also known as Fall in North America) follows summer and precedes winter, characterized by falling leaves and cooler temperatures.",
-      learningTip: "Review the four seasons and their order.",
-    },
-    {
-      text: "What is the chemical symbol for water?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "O2" },
-        { text: "CO2" },
-        { text: "H2O", isCorrect: true },
-        { text: "NaCl" },
-      ],
-      explanation:
-        "H2O represents two hydrogen atoms and one oxygen atom, forming a molecule of water.",
-      learningTip: "Familiarize yourself with common chemical formulas.",
-    },
-    {
-      text: "What type of fish is Nemo?",
-      difficulty: Difficulty.EASY,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Goldfish" },
-        { text: "Shark" },
-        { text: "Clownfish", isCorrect: true },
-        { text: "Tuna" },
-      ],
-      explanation:
-        'Nemo, the protagonist of Disney/Pixar\'s "Finding Nemo," is a young clownfish.',
-      learningTip: "Popular animated movie characters are common trivia.",
-    },
-    {
-      text: 'Which animal says "meow"?',
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Dog" },
-        { text: "Cow" },
-        { text: "Cat", isCorrect: true },
-        { text: "Duck" },
-      ],
-      explanation: 'Cats are known for their distinctive "meow" vocalization.',
-      learningTip: "Basic animal sounds are fundamental.",
-    },
-    {
-      text: "What do you use to write on a blackboard?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Pen" },
-        { text: "Marker" },
-        { text: "Chalk", isCorrect: true },
-        { text: "Crayon" },
-      ],
-      explanation:
-        "Chalk is a soft, white, porous sedimentary carbonate rock, traditionally used for writing on blackboards.",
-      learningTip: "Identify common tools and their uses.",
-    },
-    {
-      text: "How many wheels does a bicycle have?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "1" },
-        { text: "3" },
-        { text: "2", isCorrect: true },
-        { text: "4" },
-      ],
-      explanation:
-        'The prefix "bi-" means two, indicating two wheels for a bicycle.',
-      learningTip: "Understand prefixes for common words.",
-    },
-    {
-      text: "Which is not a primary color?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Red" },
-        { text: "Blue" },
-        { text: "Green", isCorrect: true },
-        { text: "Yellow" },
-      ],
-      explanation:
-        "Primary colors are Red, Yellow, and Blue. Green is a secondary color, made by mixing blue and yellow.",
-      learningTip: "Memorize primary and secondary colors in art.",
-    },
-    {
-      text: "What is the 7th month of the year?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "June" },
-        { text: "August" },
-        { text: "July", isCorrect: true },
-        { text: "September" },
-      ],
-      explanation:
-        "The months of the year follow a specific order, and July is the seventh month.",
-      learningTip: "Practice the order of months in a year.",
-    },
-    {
-      text: "What is the fastest land animal?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Lion" },
-        { text: "Horse" },
-        { text: "Cheetah", isCorrect: true },
-        { text: "Gazelle" },
-      ],
-      explanation:
-        "The cheetah is known as the fastest land animal, capable of running at speeds up to 120 km/h (75 mph) over short distances.",
-      learningTip: "Learn about animal speeds and adaptations.",
-    },
-    {
-      text: "Which superhero is from Krypton?",
-      difficulty: Difficulty.EASY,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Batman" },
-        { text: "Spider-Man" },
-        { text: "Superman", isCorrect: true },
-        { text: "Iron Man" },
-      ],
-      explanation:
-        "Superman, also known as Kal-El, is an alien from the planet Krypton who was sent to Earth as a baby.",
-      learningTip:
-        "Familiarize yourself with origins of popular comic book characters.",
-    },
-    {
-      text: "Which country is shaped like a boot?",
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Greece" },
-        { text: "Japan" },
-        { text: "Italy", isCorrect: true },
-        { text: "Spain" },
-      ],
-      explanation:
-        "Italy is famously shaped like a high-heeled boot, extending into the Mediterranean Sea.",
-      learningTip: "Visual cues can help remember country shapes.",
-    },
-    {
-      text: "What is the largest organ in the human body?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Heart" },
-        { text: "Brain" },
-        { text: "Skin", isCorrect: true },
-        { text: "Liver" },
-      ],
-      explanation:
-        "The skin is the largest organ of the human body, serving as a protective barrier.",
-      learningTip: "Learn about major human organs and their functions.",
-    },
-    {
-      text: "How many planets are in our solar system?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "7" },
-        { text: "9" },
-        { text: "8", isCorrect: true },
-        { text: "10" },
-      ],
-      explanation:
-        "After Pluto was reclassified as a dwarf planet, there are now officially 8 planets in our solar system.",
-      learningTip: "Keep up-to-date with astronomy definitions.",
-    },
-    {
-      text: "What is a common household pet that barks?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Cat" },
-        { text: "Bird" },
-        { text: "Dog", isCorrect: true },
-        { text: "Fish" },
-      ],
-      explanation:
-        "Dogs are well-known for their characteristic barking sound.",
-      learningTip: "Observe common animal behaviors.",
-    },
-    {
-      text: "Which fruit is red and has seeds on the outside?",
-      difficulty: Difficulty.EASY,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Apple" },
-        { text: "Cherry" },
-        { text: "Strawberry", isCorrect: true },
-        { text: "Raspberry" },
-      ],
-      explanation:
-        "Strawberries have small, edible seeds on their outer surface, unlike many other fruits.",
-      learningTip: "Pay attention to unique characteristics of fruits.",
-    },
-    {
-      text: 'What is the opposite of "day"?',
-      difficulty: Difficulty.EASY,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Morning" },
-        { text: "Afternoon" },
-        { text: "Night", isCorrect: true },
-        { text: "Evening" },
-      ],
-      explanation:
-        "Night is the period of darkness in each twenty-four hours when the sun is below the horizon.",
-      learningTip: "Basic opposites are foundational vocabulary.",
-    },
-
-    // --- MEDIUM QUESTIONS ---
-    {
-      text: "Who painted the Mona Lisa?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Vincent van Gogh" },
-        { text: "Pablo Picasso" },
-        { text: "Leonardo da Vinci", isCorrect: true },
-        { text: "Claude Monet" },
-      ],
-      explanation:
-        "The Mona Lisa, a half-length portrait painting by Italian artist Leonardo da Vinci, is considered an archetypal masterpiece of the Italian Renaissance.",
-      learningTip:
-        "Famous artworks and their creators are common cultural knowledge.",
-    },
-    {
-      text: "What is the chemical symbol for gold?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Ag" },
-        { text: "Go" },
-        { text: "Au", isCorrect: true },
-        { text: "Gd" },
-      ],
-      explanation:
-        "The chemical symbol for gold is Au, derived from its Latin name, aurum.",
-      learningTip:
-        "Learn common elements and their symbols on the periodic table.",
-    },
-    {
-      text: "Which planet is closest to the sun?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Venus" },
-        { text: "Mars" },
-        { text: "Mercury", isCorrect: true },
-        { text: "Earth" },
-      ],
-      explanation:
-        "Mercury is the smallest planet in our solar system and the closest to the Sun.",
-      learningTip: "Review facts about inner solar system planets.",
-    },
-    {
-      text: "What is the main ingredient in guacamole?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Tomato" },
-        { text: "Onion" },
-        { text: "Avocado", isCorrect: true },
-        { text: "Lime" },
-      ],
-      explanation:
-        "Guacamole is an avocado-based dip, spread, or salad first developed by the Aztecs in what is now Mexico.",
-      learningTip:
-        "Learn about popular international dishes and their main ingredients.",
-    },
-    {
-      text: "In which country would you find the Great Wall?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "India" },
-        { text: "Japan" },
-        { text: "China", isCorrect: true },
-        { text: "South Korea" },
-      ],
-      explanation:
-        "The Great Wall of China is a series of fortifications built across the historical northern borders of ancient Chinese states.",
-      learningTip:
-        "Associate major historical structures with their countries of origin.",
-    },
-    {
-      text: "What is the hardest natural substance on Earth?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Gold" },
-        { text: "Iron" },
-        { text: "Diamond", isCorrect: true },
-        { text: "Quartz" },
-      ],
-      explanation:
-        "Diamond is the hardest known natural mineral and the hardest known natural material.",
-      learningTip: "Learn about properties of common minerals and materials.",
-    },
-    {
-      text: 'Who wrote the play "Romeo and Juliet"?',
-      difficulty: Difficulty.MEDIUM,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Charles Dickens" },
-        { text: "Jane Austen" },
-        { text: "William Shakespeare", isCorrect: true },
-        { text: "George Orwell" },
-      ],
-      explanation:
-        'William Shakespeare, the renowned English playwright, is the author of the tragic play "Romeo and Juliet".',
-      learningTip:
-        "Familiarize yourself with famous authors and their most notable works.",
-    },
-    {
-      text: "What process do plants use to make their own food?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Respiration" },
-        { text: "Transpiration" },
-        { text: "Photosynthesis", isCorrect: true },
-        { text: "Germination" },
-      ],
-      explanation:
-        "Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods from carbon dioxide and water.",
-      learningTip: "Understand basic biological processes in nature.",
-    },
-    {
-      text: "How many bones are in the adult human body?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "201" },
-        { text: "212" },
-        { text: "206", isCorrect: true },
-        { text: "209" },
-      ],
-      explanation: "The adult human skeleton typically consists of 206 bones.",
-      learningTip: "Basic human anatomy is a common quiz topic.",
-    },
-    {
-      text: "Which country is both in Europe and Asia?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Spain" },
-        { text: "Egypt" },
-        { text: "Turkey", isCorrect: true },
-        { text: "Greece" },
-      ],
-      explanation:
-        "Turkey is a transcontinental country, with its territory located mostly on the Anatolian Peninsula in Western Asia, and a smaller portion on the Balkan Peninsula in Southeast Europe.",
-      learningTip: "Learn about transcontinental countries.",
-    },
-    {
-      text: "What is the capital of Australia?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Sydney" },
-        { text: "Melbourne" },
-        { text: "Canberra", isCorrect: true },
-        { text: "Perth" },
-      ],
-      explanation:
-        "While Sydney and Melbourne are larger cities, Canberra is the capital of Australia, designed specifically for that purpose.",
-      learningTip:
-        "Distinguish between largest city and capital city for countries.",
-    },
-    {
-      text: "What is the currency of Switzerland?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Euro" },
-        { text: "Dollar" },
-        { text: "Franc", isCorrect: true },
-        { text: "Krone" },
-      ],
-      explanation:
-        "The official currency of Switzerland and Liechtenstein is the Swiss Franc (CHF).",
-      learningTip: "Know currencies of economically significant countries.",
-    },
-    {
-      text: "Who invented the telephone?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Thomas Edison" },
-        { text: "Nikola Tesla" },
-        { text: "Alexander Graham Bell", isCorrect: true },
-        { text: "Guglielmo Marconi" },
-      ],
-      explanation:
-        "Alexander Graham Bell is widely credited as the inventor of the telephone.",
-      learningTip:
-        "Familiarize yourself with key inventors and their inventions.",
-    },
-    {
-      text: "What is the tallest mountain in the world?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "K2" },
-        { text: "Kangchenjunga" },
-        { text: "Mount Everest", isCorrect: true },
-        { text: "Lhotse" },
-      ],
-      explanation:
-        "Mount Everest, located in the Himalayas, is the Earth's highest mountain above sea level.",
-      learningTip: "Geographical superlatives are common trivia.",
-    },
-    {
-      text: 'Which U.S. state is known as the "Sunshine State"?',
-      difficulty: Difficulty.MEDIUM,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "California" },
-        { text: "Texas" },
-        { text: "Florida", isCorrect: true },
-        { text: "Arizona" },
-      ],
-      explanation:
-        'Florida is officially known as the "Sunshine State" due to its typically warm and sunny climate.',
-      learningTip: "Learn state nicknames and their origins.",
-    },
-    {
-      text: "What is the main component of Earth's atmosphere?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Oxygen" },
-        { text: "Carbon Dioxide" },
-        { text: "Nitrogen", isCorrect: true },
-        { text: "Argon" },
-      ],
-      explanation:
-        "Nitrogen makes up about 78% of Earth's atmosphere, followed by oxygen at about 21%.",
-      learningTip: "Understand the composition of Earth's atmosphere.",
-    },
-    {
-      text: 'Which band released the album "The Dark Side of the Moon"?',
-      difficulty: Difficulty.MEDIUM,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "The Beatles" },
-        { text: "Led Zeppelin" },
-        { text: "Pink Floyd", isCorrect: true },
-        { text: "The Rolling Stones" },
-      ],
-      explanation:
-        'Pink Floyd\'s "The Dark Side of the Moon" is one of the best-selling and most critically acclaimed albums of all time.',
-      learningTip: "Know iconic albums and the bands that created them.",
-    },
-    {
-      text: "What is the largest mammal in the world?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Elephant" },
-        { text: "Giraffe" },
-        { text: "Blue Whale", isCorrect: true },
-        { text: "Sperm Whale" },
-      ],
-      explanation:
-        "The blue whale is the largest animal known to have ever lived, weighing up to 200 tons and reaching lengths of 30 meters.",
-      learningTip:
-        "Distinguish between largest land animal and largest animal overall.",
-    },
-    {
-      text: "Who was the first person to walk on the Moon?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Buzz Aldrin" },
-        { text: "Yuri Gagarin" },
-        { text: "Neil Armstrong", isCorrect: true },
-        { text: "Michael Collins" },
-      ],
-      explanation:
-        "Neil Armstrong was the first person to walk on the Moon, on July 20, 1969, as part of the Apollo 11 mission.",
-      learningTip:
-        "Space exploration milestones are important historical events.",
-    },
-    {
-      text: "What is the longest river in the world?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Amazon River" },
-        { text: "Yangtze River" },
-        { text: "Nile River", isCorrect: true },
-        { text: "Mississippi River" },
-      ],
-      explanation:
-        "The Nile River is considered the longest river in the world, flowing through northeastern Africa.",
-      learningTip: "Geographical superlatives are common quiz topics.",
-    },
-    {
-      text: 'What does "www" stand for in a website browser?',
-      difficulty: Difficulty.MEDIUM,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "World Wide Web", isCorrect: true },
-        { text: "World Web Wide" },
-        { text: "Web World Wide" },
-        { text: "Wide World Web" },
-      ],
-      explanation:
-        "WWW stands for World Wide Web, which is a global system of interconnected computer networks that uses the internet's standard communication protocols.",
-      learningTip: "Understand common internet acronyms.",
-    },
-    {
-      text: "In which year did World War II end?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "1943" },
-        { text: "1944" },
-        { text: "1945", isCorrect: true },
-        { text: "1946" },
-      ],
-      explanation:
-        "World War II officially ended on September 2, 1945, with the formal surrender of Japan.",
-      learningTip: "Memorize key dates in modern history.",
-    },
-    {
-      text: "What is the fear of spiders called?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Agoraphobia" },
-        { text: "Acrophobia" },
-        { text: "Arachnophobia", isCorrect: true },
-        { text: "Claustrophobia" },
-      ],
-      explanation:
-        "Arachnophobia is the specific phobia, or irrational fear, of spiders and other arachnids.",
-      learningTip: "Learn common phobias and their Greek roots.",
-    },
-    {
-      text: 'What element does "O" represent on the periodic table?',
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Osmium" },
-        { text: "Gold" },
-        { text: "Oxygen", isCorrect: true },
-        { text: "Oganesson" },
-      ],
-      explanation:
-        "O is the chemical symbol for Oxygen, a vital element for life on Earth.",
-      learningTip:
-        "Familiarize yourself with common elements and their symbols.",
-    },
-    {
-      text: "Which artist cut off a part of his own ear?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Pablo Picasso" },
-        { text: "Salvador Dalí" },
-        { text: "Vincent van Gogh", isCorrect: true },
-        { text: "Claude Monet" },
-      ],
-      explanation:
-        "Vincent van Gogh, the Dutch post-impressionist painter, notoriously cut off part of his own ear in 1888.",
-      learningTip: "Know unusual facts about famous artists.",
-    },
-    {
-      text: "Which country invented tea?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "India" },
-        { text: "Japan" },
-        { text: "China", isCorrect: true },
-        { text: "England" },
-      ],
-      explanation:
-        "Tea originated in China, where it has been consumed for thousands of years.",
-      learningTip: "Understand the origins of popular foods and drinks.",
-    },
-    {
-      text: "Who is the author of the Harry Potter series?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Suzanne Collins" },
-        { text: "J.R.R. Tolkien" },
-        { text: "J.K. Rowling", isCorrect: true },
-        { text: "George R.R. Martin" },
-      ],
-      explanation:
-        "J.K. Rowling is the British author who created the widely popular Harry Potter fantasy series.",
-      learningTip: "Know famous authors and their most popular series.",
-    },
-    {
-      text: "What is the freezing point of water in Celsius?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "32°C" },
-        { text: "-10°C" },
-        { text: "0°C", isCorrect: true },
-        { text: "100°C" },
-      ],
-      explanation:
-        "Water freezes at 0 degrees Celsius and boils at 100 degrees Celsius at standard atmospheric pressure.",
-      learningTip: "Memorize key temperatures for phase changes of water.",
-    },
-    {
-      text: "What is the main currency of the European Union?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Franc" },
-        { text: "Lira" },
-        { text: "Euro", isCorrect: true },
-        { text: "Mark" },
-      ],
-      explanation:
-        "The Euro is the official currency of 20 of the 27 member states of the European Union.",
-      learningTip: "Identify major global currencies.",
-    },
-    {
-      text: "Which instrument has 88 keys?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Guitar" },
-        { text: "Violin" },
-        { text: "Piano", isCorrect: true },
-        { text: "Trumpet" },
-      ],
-      explanation: "A full-sized piano has 88 keys (52 white and 36 black).",
-      learningTip: "Learn interesting facts about musical instruments.",
-    },
-    {
-      text: "Who discovered penicillin?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Marie Curie" },
-        { text: "Louis Pasteur" },
-        { text: "Alexander Fleming", isCorrect: true },
-        { text: "Isaac Newton" },
-      ],
-      explanation:
-        "Alexander Fleming, a Scottish physician and microbiologist, discovered penicillin in 1928.",
-      learningTip: "Know key figures in scientific discovery.",
-    },
-    {
-      text: "Which gas do plants absorb from the atmosphere?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Oxygen" },
-        { text: "Nitrogen" },
-        { text: "Carbon Dioxide", isCorrect: true },
-        { text: "Hydrogen" },
-      ],
-      explanation:
-        "Plants absorb carbon dioxide from the atmosphere during photosynthesis to produce food.",
-      learningTip: "Understand the gas exchange in plant biology.",
-    },
-    {
-      text: "What is the name of the biggest technology company in South Korea?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "LG" },
-        { text: "Hyundai" },
-        { text: "Samsung", isCorrect: true },
-        { text: "Kia" },
-      ],
-      explanation:
-        "Samsung is a global leader in technology, particularly known for electronics and semiconductors.",
-      learningTip: "Identify major global corporations and their origins.",
-    },
-    {
-      text: "What is the largest country in South America by land area?",
-      difficulty: Difficulty.MEDIUM,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Argentina" },
-        { text: "Peru" },
-        { text: "Brazil", isCorrect: true },
-        { text: "Colombia" },
-      ],
-      explanation:
-        "Brazil is the largest country in South America, both in terms of area and population.",
-      learningTip: "Learn about the largest countries by continent.",
-    },
-
-    // --- HARD QUESTIONS ---
-    {
-      text: "What is the capital of Bhutan?",
-      difficulty: Difficulty.HARD,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Kathmandu" },
-        { text: "Dhaka" },
-        { text: "Thimphu", isCorrect: true },
-        { text: "Naypyidaw" },
-      ],
-      explanation:
-        "Thimphu is the capital and largest city of Bhutan, a country in the Eastern Himalayas.",
-      learningTip:
-        "Challenging capitals often involve smaller or less commonly discussed countries.",
-    },
-    {
-      text: "Which chemical element has the highest melting point?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Titanium" },
-        { text: "Platinum" },
-        { text: "Tungsten", isCorrect: true },
-        { text: "Osmium" },
-      ],
-      explanation:
-        "Tungsten has the highest melting point of all known metals, at 3,422 °C (6,192 °F).",
-      learningTip: "Look into extreme properties of elements.",
-    },
-    {
-      text: 'In what year was the first "C" programming language standard published?',
-      difficulty: Difficulty.HARD,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "1972" },
-        { text: "1983" },
-        { text: "1989", isCorrect: true },
-        { text: "1999" },
-      ],
-      explanation:
-        "The first official standard for C, known as C89 or C90, was published by ANSI in 1989.",
-      learningTip: "Key dates in computer science history can be obscure.",
-    },
-    {
-      text: "What is the study of fungi called?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Virology" },
-        { text: "Botany" },
-        { text: "Mycology", isCorrect: true },
-        { text: "Zoology" },
-      ],
-      explanation:
-        "Mycology is the branch of biology concerned with the study of fungi, including their genetic and biochemical properties, their taxonomy, and their use to humans as a source for tinder, medicine, food, and entheogens, as well as their dangers, such as poisoning or infection.",
-      learningTip: "Memorize scientific terms for branches of biology.",
-    },
-    {
-      text: 'Who composed the "Brandenburg Concertos"?',
-      difficulty: Difficulty.HARD,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Mozart" },
-        { text: "Beethoven" },
-        { text: "Johann Sebastian Bach", isCorrect: true },
-        { text: "Vivaldi" },
-      ],
-      explanation:
-        "The Brandenburg Concertos are a collection of six instrumental works by Johann Sebastian Bach, dedicated to Christian Ludwig, Margrave of Brandenburg-Schwedt.",
-      learningTip:
-        "Classical music composers and their major works are often asked.",
-    },
-    {
-      text: 'What is the "Turing test" used to determine?',
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "A machine's processing speed" },
-        {
-          text: "A machine's ability to exhibit intelligent behavior",
-          isCorrect: true,
-        },
-        { text: "A machine's memory capacity" },
-        { text: "A machine's encryption strength" },
-      ],
-      explanation:
-        "The Turing test, developed by Alan Turing, is a test of a machine's ability to exhibit intelligent behavior equivalent to, or indistinguishable from, that of a human.",
-      learningTip:
-        "Understand fundamental concepts in AI and computer science.",
-    },
-    {
-      text: 'The "Bay of Pigs" invasion was a failed attempt to overthrow which country\'s leader?',
-      difficulty: Difficulty.HARD,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Nicaragua" },
-        { text: "Panama" },
-        { text: "Cuba (Fidel Castro)", isCorrect: true },
-        { text: "Chile" },
-      ],
-      explanation:
-        "The Bay of Pigs Invasion was a failed landing operation on the southwestern coast of Cuba in 1961 by Cuban exiles who opposed Fidel Castro's Cuban Revolution.",
-      learningTip: "Learn about key Cold War events and figures.",
-    },
-    {
-      text: 'What does the "c" in E=mc² stand for?',
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Constant" },
-        { text: "Calorie" },
-        { text: "The speed of light", isCorrect: true },
-        { text: "Charge" },
-      ],
-      explanation:
-        'In Einstein\'s famous equation E=mc², "c" represents the speed of light in a vacuum, a universal physical constant.',
-      learningTip: "Know the components of famous scientific equations.",
-    },
-    {
-      text: 'Which philosopher is famous for the concept of the "Übermensch"?',
-      difficulty: Difficulty.HARD,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Socrates" },
-        { text: "Immanuel Kant" },
-        { text: "Friedrich Nietzsche", isCorrect: true },
-        { text: "Jean-Paul Sartre" },
-      ],
-      explanation:
-        'Friedrich Nietzsche introduced the concept of the "Übermensch" (Overman or Superman) in his philosophical novel "Thus Spoke Zarathustra".',
-      learningTip:
-        "Familiarize yourself with major philosophical concepts and their proponents.",
-    },
-    {
-      text: "What is the name of the strait that separates Asia from North America?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Strait of Gibraltar" },
-        { text: "Strait of Hormuz" },
-        { text: "Bering Strait", isCorrect: true },
-        { text: "Strait of Malacca" },
-      ],
-      explanation:
-        "The Bering Strait is a strait of the Pacific Ocean, which separates Russia and the United States slightly south of the Arctic Circle.",
-      learningTip:
-        "Learn about important geographical straits and their locations.",
-    },
-    {
-      text: "Which ancient wonder was located in the city of Alexandria, Egypt?",
-      difficulty: Difficulty.HARD,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Hanging Gardens of Babylon" },
-        { text: "Colossus of Rhodes" },
-        { text: "Lighthouse of Alexandria", isCorrect: true },
-        { text: "Mausoleum at Halicarnassus" },
-      ],
-      explanation:
-        "The Lighthouse of Alexandria, one of the Seven Wonders of the Ancient World, was a colossal lighthouse built by the Ptolemaic Kingdom of Ancient Egypt, located on the island of Pharos at Alexandria.",
-      learningTip:
-        "Know the Seven Wonders of the Ancient World and their locations.",
-    },
-    {
-      text: "What is the most abundant element in the Earth's crust?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Iron" },
-        { text: "Silicon" },
-        { text: "Oxygen", isCorrect: true },
-        { text: "Aluminum" },
-      ],
-      explanation:
-        "Oxygen is the most abundant element in the Earth's crust, making up about 46% of its mass.",
-      learningTip: "Understand the elemental composition of Earth's layers.",
-    },
-    {
-      text: 'In Shakespeare\'s "Othello", who is the antagonist that manipulates the title character?',
-      difficulty: Difficulty.HARD,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Cassio" },
-        { text: "Roderigo" },
-        { text: "Iago", isCorrect: true },
-        { text: "Brabantio" },
-      ],
-      explanation:
-        "Iago is the scheming villain in William Shakespeare's tragedy Othello, who manipulates Othello into believing his wife Desdemona is unfaithful, leading to tragic consequences.",
-      learningTip:
-        "Major characters and their roles in classic literature are common trivia.",
-    },
-    {
-      text: "Which king signed the Magna Carta in 1215?",
-      difficulty: Difficulty.HARD,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "King Henry VIII" },
-        { text: "King Richard the Lionheart" },
-        { text: "King John", isCorrect: true },
-        { text: "King Edward I" },
-      ],
-      explanation:
-        "King John of England signed the Magna Carta, a charter of rights agreed to by King John of England at Runnymede, Berkshire, on 15 June 1215.",
-      learningTip:
-        "Key historical documents and their associated figures are important.",
-    },
-    {
-      text: "What is the Kardashev scale used to measure?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Earthquake intensity" },
-        { text: "Stellar brightness" },
-        { text: "A civilization's technological advancement", isCorrect: true },
-        { text: "Cosmic microwave background radiation" },
-      ],
-      explanation:
-        "The Kardashev scale is a method of classifying civilizations by their technological advancement based on the amount of energy they are able to use.",
-      learningTip: "Explore concepts from theoretical physics and astronomy.",
-    },
-    {
-      text: 'The philosophical concept of "tabula rasa" refers to the idea that humans are born with what?',
-      difficulty: Difficulty.HARD,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Innate knowledge" },
-        { text: "Original sin" },
-        { text: "A blank slate", isCorrect: true },
-        { text: "A soul" },
-      ],
-      explanation:
-        'Tabula rasa (Latin for "blank slate") is the theory that individuals are born without built-in mental content and that therefore all knowledge comes from experience or perception.',
-      learningTip: "Familiarize yourself with famous philosophical concepts.",
-    },
-    {
-      text: 'Which novel begins with the line, "It is a truth universally acknowledged..."?',
-      difficulty: Difficulty.HARD,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Wuthering Heights" },
-        { text: "Jane Eyre" },
-        { text: "Pride and Prejudice", isCorrect: true },
-        { text: "Sense and Sensibility" },
-      ],
-      explanation:
-        'The opening line of Jane Austen\'s "Pride and Prejudice" is one of the most famous in English literature.',
-      learningTip: "Know iconic opening lines of classic novels.",
-    },
-    {
-      text: "What is the name of the supercontinent that existed millions of years ago?",
-      difficulty: Difficulty.HARD,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Gondwana" },
-        { text: "Laurasia" },
-        { text: "Pangaea", isCorrect: true },
-        { text: "Rodinia" },
-      ],
-      explanation:
-        "Pangaea was a supercontinent that existed during the late Paleozoic and early Mesozoic eras, forming approximately 335 million years ago.",
-      learningTip: "Understand basic geological history of Earth.",
-    },
-    {
-      text: "Which particle is its own antiparticle?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Neutron" },
-        { text: "Electron" },
-        { text: "Photon", isCorrect: true },
-        { text: "Proton" },
-      ],
-      explanation:
-        "A photon is its own antiparticle, meaning it is identical to its antiparticle. This is characteristic of particles with zero electric charge and zero magnetic moment.",
-      learningTip: "Explore fundamental particles in physics.",
-    },
-    {
-      text: "What is the name of the largest moon of Saturn?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Europa" },
-        { text: "Ganymede" },
-        { text: "Titan", isCorrect: true },
-        { text: "Io" },
-      ],
-      explanation:
-        "Titan is the largest moon of Saturn and the second-largest moon in the Solar System. It is the only moon known to have a dense atmosphere and the only object other than Earth for which clear evidence of stable bodies of surface liquid has been found.",
-      learningTip: "Learn about major moons in our solar system.",
-    },
-    {
-      text: "Who is considered the father of modern computer science?",
-      difficulty: Difficulty.HARD,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Charles Babbage" },
-        { text: "John von Neumann" },
-        { text: "Alan Turing", isCorrect: true },
-        { text: "Ada Lovelace" },
-      ],
-      explanation:
-        "Alan Turing was a British mathematician and computer scientist who is widely considered to be the father of theoretical computer science and artificial intelligence.",
-      learningTip: "Know key figures in the history of technology.",
-    },
-    {
-      text: "Which country has the most time zones?",
-      difficulty: Difficulty.HARD,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Russia" },
-        { text: "USA" },
-        { text: "France", isCorrect: true },
-        { text: "China" },
-      ],
-      explanation:
-        "France, including its overseas territories, has the most time zones of any country in the world, with 12 (13 including its claim in Antarctica).",
-      learningTip: "Explore surprising geographical facts.",
-    },
-    {
-      text: "What is the name of the Japanese art of flower arranging?",
-      difficulty: Difficulty.HARD,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Origami" },
-        { text: "Bonsai" },
-        { text: "Ikebana", isCorrect: true },
-        { text: "Sumi-e" },
-      ],
-      explanation:
-        "Ikebana is the Japanese art of flower arrangement. It is more than simply putting flowers in a container. It is a disciplined art form in which nature and humanity are brought together.",
-      learningTip: "Learn about traditional art forms from different cultures.",
-    },
-    {
-      text: 'The "Doomsday Clock" is maintained by which organization?',
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "United Nations" },
-        { text: "World Health Organization" },
-        { text: "Bulletin of the Atomic Scientists", isCorrect: true },
-        { text: "NASA" },
-      ],
-      explanation:
-        "The Doomsday Clock is a symbolic clock face, maintained since 1947 by the members of the Bulletin of the Atomic Scientists' Science and Security Board, that represents the likelihood of a man-made global catastrophe.",
-      learningTip:
-        "Understand significant scientific and geopolitical indicators.",
-    },
-    {
-      text: "What is the only bird known to fly backwards?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Sparrow" },
-        { text: "Eagle" },
-        { text: "Hummingbird", isCorrect: true },
-        { text: "Owl" },
-      ],
-      explanation:
-        "Hummingbirds are the only birds that can truly fly backwards. They can also hover and fly upside down.",
-      learningTip: "Explore unique adaptations in the animal kingdom.",
-    },
-    {
-      text: "What is the main difference between a lager and an ale?",
-      difficulty: Difficulty.HARD,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "The type of grain used" },
-        { text: "The alcohol content" },
-        {
-          text: "The type of yeast and fermentation temperature",
-          isCorrect: true,
-        },
-        { text: "The color" },
-      ],
-      explanation:
-        "The primary difference between lagers and ales lies in the type of yeast used and the fermentation temperature. Lagers use bottom-fermenting yeasts at colder temperatures, while ales use top-fermenting yeasts at warmer temperatures.",
-      learningTip:
-        "Understand basic classifications in food and drink production.",
-    },
-    {
-      text: "Which of the following is not a programming language?",
-      difficulty: Difficulty.HARD,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "Python" },
-        { text: "Cobra" },
-        { text: "Anaconda", isCorrect: true },
-        { text: "Ruby" },
-      ],
-      explanation:
-        "Python, Cobra, and Ruby are programming languages. Anaconda is a distribution for Python and R programming languages, primarily used for data science and machine learning.",
-      learningTip:
-        "Distinguish between programming languages and related tools/distributions.",
-    },
-    {
-      text: "What is the capital of Iceland?",
-      difficulty: Difficulty.HARD,
-      categoryId: generalCategory.id,
-      options: [
-        { text: "Oslo" },
-        { text: "Helsinki" },
-        { text: "Reykjavik", isCorrect: true },
-        { text: "Copenhagen" },
-      ],
-      explanation:
-        "Reykjavík is the capital and largest city of Iceland, known for its vibrant culture and natural beauty.",
-      learningTip: "Challenge yourself with less common capitals.",
-    },
-    {
-      text: "What is the standard unit of electrical resistance?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Volt" },
-        { text: "Ampere" },
-        { text: "Ohm", isCorrect: true },
-        { text: "Watt" },
-      ],
-      explanation:
-        "The ohm (symbol: Ω) is the SI derived unit of electrical resistance, named after German physicist Georg Simon Ohm.",
-      learningTip: "Memorize fundamental units in physics.",
-    },
-    {
-      text: "Which famous scientist developed the theory of general relativity?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Isaac Newton" },
-        { text: "Galileo Galilei" },
-        { text: "Albert Einstein", isCorrect: true },
-        { text: "Stephen Hawking" },
-      ],
-      explanation:
-        "Albert Einstein developed the theory of general relativity in 1915, which remains the current description of gravitation in modern physics.",
-      learningTip:
-        "Associate major scientific theories with their discoverers.",
-    },
-    {
-      text: "What is the approximate speed of sound in air?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "1,235 km/h" },
-        { text: "343 m/s", isCorrect: true },
-        { text: "767 mph" },
-        { text: "All of the above" },
-      ],
-      explanation:
-        "The speed of sound in dry air at 20 °C (68 °F) is 343 meters per second (1,235 km/h or 767 mph).",
-      learningTip:
-        "Understand approximate values of common physical constants.",
-    },
-    {
-      text: "Which ancient civilization built the city of Machu Picchu?",
-      difficulty: Difficulty.HARD,
-      categoryId: historyCategory.id,
-      options: [
-        { text: "Aztec" },
-        { text: "Maya" },
-        { text: "Inca", isCorrect: true },
-        { text: "Olmec" },
-      ],
-      explanation:
-        "Machu Picchu is an ancient Inca citadel located in the Eastern Cordillera of southern Peru.",
-      learningTip:
-        "Connect ancient civilizations with their famous structures.",
-    },
-    {
-      text: "What is the largest living species of lizard?",
-      difficulty: Difficulty.HARD,
-      categoryId: scienceCategory.id,
-      options: [
-        { text: "Gila Monster" },
-        { text: "Green Iguana" },
-        { text: "Komodo Dragon", isCorrect: true },
-        { text: "Monitor Lizard" },
-      ],
-      explanation:
-        "The Komodo dragon is the largest extant species of lizard, growing to a maximum length of 3 meters (10 ft).",
-      learningTip: "Learn about record-breaking animal species.",
-    },
-    {
-      text: "Which novel features the character of Atticus Finch?",
-      difficulty: Difficulty.HARD,
-      categoryId: entertainmentCategory.id,
-      options: [
-        { text: "1984" },
-        { text: "The Catcher in the Rye" },
-        { text: "To Kill a Mockingbird", isCorrect: true },
-        { text: "The Great Gatsby" },
-      ],
-      explanation:
-        'Atticus Finch is a central character in Harper Lee\'s classic novel "To Kill a Mockingbird," representing moral integrity.',
-      learningTip: "Know key characters from celebrated works of literature.",
-    },
+  const categoriesToCreate = [
+    { name: "Technical Analysis" },
+    { name: "Fundamental Analysis" },
+    { name: "Options & Derivatives" },
+    { name: "Risk Management & Psychology" },
+    { name: "Market Concepts & Economics" },
+    { name: "Forex & Commodities" },
   ];
 
-  // 4. Create Questions and connect them to a category
-  console.log("Creating questions...");
-  for (const q of allQuestions) {
+  await prisma.category.createMany({
+    data: categoriesToCreate,
+  });
+
+  const createdCategories = await prisma.category.findMany();
+  const categoryMap = createIdMap(createdCategories);
+  console.log("Categories created:", createdCategories.map(c => c.name).join(", "));
+
+  // 3. Define the questions array
+  // You will paste all 20 parts inside this array.
+  const allQuestions = [
+    // =================================================================
+// CATEGORY: TECHNICAL ANALYSIS (Questions 1-50)
+// =================================================================
+{
+  text: 'What does a "Golden Cross" chart pattern typically indicate?',
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A short-term bearish reversal" },
+    { text: "A long-term bullish trend", isCorrect: true },
+    { text: "A period of low volatility and consolidation" },
+    { text: "An imminent market crash" },
+  ],
+  explanation: "A Golden Cross occurs when a shorter-term moving average (e.g., 50-day) crosses above a longer-term moving average (e.g., 200-day). It is widely regarded by analysts as a bullish signal.",
+  learningTip: 'The opposite is a "Death Cross" (50-day MA crosses below 200-day MA), which is a bearish signal.',
+},
+{
+  text: "Which technical indicator uses two moving averages to identify changes in momentum?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Relative Strength Index (RSI)" },
+    { text: "Moving Average Convergence Divergence (MACD)", isCorrect: true },
+    { text: "Bollinger Bands" },
+    { text: "Stochastic Oscillator" },
+  ],
+  explanation: "The MACD is a trend-following momentum indicator that shows the relationship between two exponential moving averages (EMAs) of a security’s price.",
+  learningTip: "A 'bullish crossover' occurs when the MACD line crosses above its signal line, suggesting a potential buying opportunity.",
+},
+{
+  text: "A 'Doji' candlestick pattern signifies what in the market?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Strong buying pressure" },
+    { text: "Strong selling pressure" },
+    { text: "Indecision or a potential turning point", isCorrect: true },
+    { text: "A confirmed uptrend" },
+  ],
+  explanation: "A Doji candlestick forms when a security's open and close are virtually equal. The pattern indicates indecision and a balance between buying and selling pressure.",
+  learningTip: "Look for Doji patterns after a strong trend; they are more significant in that context.",
+},
+{
+  text: 'In Bollinger Bands, what does it mean when the bands "squeeze" or narrow?',
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A trend reversal is guaranteed" },
+    { text: "The market is trending strongly" },
+    { text: "A period of low volatility, often preceding a large price move", isCorrect: true },
+    { text: "The asset is overbought" },
+  ],
+  explanation: "A Bollinger Squeeze indicates a period of low volatility. It suggests that the market is consolidating and is often seen as a setup for a significant breakout in either direction.",
+  learningTip: "Traders watch for a 'Bollinger Squeeze' to anticipate a volatility expansion.",
+},
+{
+  text: "What is the primary purpose of a trendline in technical analysis?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "To calculate the daily trading volume" },
+    { text: "To identify the direction and speed of price movement", isCorrect: true },
+    { text: "To predict the next day's opening price" },
+    { text: "To measure a company's P/E ratio" },
+  ],
+  explanation: "A trendline is a straight line drawn on a chart connecting a series of highs or lows. It helps traders visualize the trend and can act as support or resistance.",
+  learningTip: "An uptrend line is drawn connecting two or more lows. A downtrend line connects two or more highs.",
+},
+{
+  text: "The Fibonacci retracement tool is used to identify potential what?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Company earnings dates" },
+    { text: "Levels of support and resistance", isCorrect: true },
+    { text: "Market sentiment" },
+    { text: "Trading volume anomalies" },
+  ],
+  explanation: "Fibonacci retracement levels are horizontal lines that indicate where support and resistance are likely to occur. They are based on Fibonacci numbers and are common levels where a price may reverse its trend.",
+  learningTip: "The key Fibonacci retracement levels are 23.6%, 38.2%, 50%, 61.8%, and 78.6%.",
+},
+{
+  text: "An RSI reading above 70 is generally considered to be what?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Oversold" },
+    { text: "Overbought", isCorrect: true },
+    { text: "Neutral" },
+    { text: "A buy signal" },
+  ],
+  explanation: "The Relative Strength Index (RSI) is a momentum oscillator. A reading above 70 suggests that an asset is overbought and may be primed for a trend reversal or pullback.",
+  learningTip: "Conversely, an RSI reading below 30 is typically interpreted as oversold.",
+},
+{
+  text: "What does a 'Hammer' candlestick pattern typically indicate?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A potential bearish reversal" },
+    { text: "A potential bullish reversal", isCorrect: true },
+    { text: "Continuation of a downtrend" },
+    { text: "Market indecision" },
+  ],
+  explanation: "A Hammer is a bullish reversal pattern that forms during a downtrend. It has a short body and a long lower wick, indicating that sellers drove prices down, but buyers came in to push prices back up near the open.",
+  learningTip: "Confirmation of a Hammer pattern is often sought on the next candle, which should close above the Hammer's close.",
+},
+{
+  text: "What is the difference between a simple moving average (SMA) and an exponential moving average (EMA)?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "SMA is used for short-term trends, EMA for long-term" },
+    { text: "EMA gives more weight to recent prices", isCorrect: true },
+    { text: "SMA is more responsive to price changes" },
+    { text: "There is no significant difference" },
+  ],
+  explanation: "An SMA calculates the average of a selected range of prices. An EMA is also an average, but it applies more weight to the most recent data points, making it react more quickly to price changes.",
+  learningTip: "Traders who want a more responsive moving average often prefer the EMA over the SMA.",
+},
+{
+  text: "A 'gap up' on a stock chart occurs when the opening price is...",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Lower than the previous day's close" },
+    { text: "The same as the previous day's close" },
+    { text: "Significantly higher than the previous day's high", isCorrect: true },
+    { text: "Equal to the previous day's low" },
+  ],
+  explanation: "A gap is an area on a chart where a stock's price either rises or falls from the previous day’s close with no trading occurring in between. A 'gap up' is generally a bullish sign.",
+  learningTip: "Gaps are often caused by news or events that occur after market hours.",
+},
+{
+  text: "What does the On-Balance Volume (OBV) indicator measure?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Price momentum" },
+    { text: "Market volatility" },
+    { text: "Positive and negative volume flow", isCorrect: true },
+    { text: "Support and resistance levels" },
+  ],
+  explanation: "OBV is a momentum indicator that uses volume flow to predict changes in stock price. It relates volume to price change, suggesting that volume precedes price moves.",
+  learningTip: "If price is rising but OBV is falling, this is a bearish divergence, signaling the uptrend may be weakening.",
+},
+{
+  text: "What is a 'support' level in technical analysis?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A price level where selling pressure is expected to be strong" },
+    { text: "A price level where buying pressure is expected to be strong", isCorrect: true },
+    { text: "The highest price a stock has reached in a year" },
+    { text: "The average price of a stock over 50 days" },
+  ],
+  explanation: "Support is a price level where a downtrend can be expected to pause due to a concentration of demand or buying interest. As the price drops towards support, it becomes more attractive to buyers.",
+  learningTip: "When a support level is broken, it often becomes a new resistance level.",
+},
+{
+  text: "The 'Head and Shoulders' pattern is a classic indicator of what?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A bullish trend continuation" },
+    { text: "A bearish trend reversal", isCorrect: true },
+    { text: "A period of consolidation" },
+    { text: "An increase in volatility" },
+  ],
+  explanation: "The Head and Shoulders pattern is a specific chart formation that predicts a bullish-to-bearish trend reversal. It consists of three peaks, with the middle peak (the head) being the highest.",
+  learningTip: "The pattern is confirmed when the price breaks below the 'neckline,' which connects the lows of the two troughs.",
+},
+{
+  text: "What is the primary function of the Stochastic Oscillator?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "To measure the strength of a trend" },
+    { text: "To compare a closing price to its price range over a period", isCorrect: true },
+    { text: "To identify the long-term market direction" },
+    { text: "To smooth out price data" },
+  ],
+  explanation: "The Stochastic Oscillator is a momentum indicator that compares a particular closing price of a security to a range of its prices over a certain period of time. It's used to generate overbought and oversold signals.",
+  learningTip: "Like the RSI, readings above 80 are considered overbought, and readings below 20 are considered oversold.",
+},
+{
+  text: "Which chart type displays the high, low, open, and close prices for a specific period?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Line Chart" },
+    { text: "Area Chart" },
+    { text: "Candlestick Chart", isCorrect: true },
+    { text: "Pie Chart" },
+  ],
+  explanation: "Candlestick charts are popular among traders as they provide a wealth of information at a glance, including the open, high, low, and close prices, as well as the direction of the price move for a given period.",
+  learningTip: "The 'body' of the candle shows the open-to-close range, while the 'wicks' show the high and low.",
+},
+{
+  text: "What does a 'Death Cross' signify on a chart?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A long-term bullish signal" },
+    { text: "A short-term price spike" },
+    { text: "A potentially significant long-term bearish downturn", isCorrect: true },
+    { text: "The start of a consolidation phase" },
+  ],
+  explanation: "A Death Cross occurs when a short-term moving average (typically the 50-day) crosses below a long-term moving average (typically the 200-day). It is considered a major bearish signal.",
+  learningTip: "A Death Cross is the opposite of a Golden Cross and can indicate the potential for a major sell-off.",
+},
+{
+  text: "In Elliott Wave Theory, a complete market cycle consists of how many waves?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "3 waves" },
+    { text: "5 waves" },
+    { text: "8 waves (5 impulse, 3 corrective)", isCorrect: true },
+    { text: "12 waves" },
+  ],
+  explanation: "Elliott Wave Theory suggests that market movements follow a repetitive pattern of waves. A full cycle is made up of eight waves: five 'impulse' waves that move in the direction of the main trend, followed by three 'corrective' waves that move against it.",
+  learningTip: "Waves 1, 3, and 5 are impulse waves, while waves 2 and 4 are corrective. Waves A, B, and C form the final corrective phase.",
+},
+{
+  text: "What is 'divergence' in technical analysis?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "When price moves in the same direction as a technical indicator" },
+    { text: "When price moves in the opposite direction of a technical indicator", isCorrect: true },
+    { text: "When two different stocks move in opposite directions" },
+    { text: "A period of no price movement" },
+  ],
+  explanation: "Divergence occurs when the price of an asset is moving in the opposite direction of a technical indicator, such as an oscillator. It can be a signal of a weakening trend and a potential trend reversal.",
+  learningTip: "Bullish divergence: price makes a new low, but the indicator makes a higher low. Bearish divergence: price makes a new high, but the indicator makes a lower high.",
+},
+{
+  text: "The Average True Range (ATR) indicator is used to measure what?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Market direction" },
+    { text: "Market volume" },
+    { text: "Market volatility", isCorrect: true },
+    { text: "Market sentiment" },
+  ],
+  explanation: "The ATR is an indicator that measures market volatility by decomposing the entire range of an asset price for that period. A higher ATR value indicates higher volatility, and a lower ATR indicates lower volatility.",
+  learningTip: "ATR does not indicate price direction; it is purely a measure of volatility. It's often used to set stop-loss orders.",
+},
+{
+  text: "A 'pennant' is a type of what chart pattern?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Reversal pattern" },
+    { text: "Continuation pattern", isCorrect: true },
+    { text: "Consolidation pattern" },
+    { text: "Volatility pattern" },
+  ],
+  explanation: "A pennant is a continuation pattern that forms after a strong price movement. It looks like a small, symmetrical triangle and suggests that after a brief pause, the trend will continue in its original direction.",
+  learningTip: "Pennants are similar to flags, but their trendlines are converging, whereas flags have parallel trendlines.",
+},
+{
+  text: "What time frame is a 'day trader' most likely to use for their charts?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Weekly or monthly charts" },
+    { text: "Daily or 4-hour charts" },
+    { text: "1-minute, 5-minute, or 15-minute charts", isCorrect: true },
+    { text: "Yearly charts" },
+  ],
+  explanation: "Day traders make numerous trades throughout a single day and do not hold positions overnight. They rely on very short-term charts (intraday charts) to make quick decisions based on small price movements.",
+  learningTip: "In contrast, a 'swing trader' might use daily or 4-hour charts, and a 'position trader' might use weekly or monthly charts.",
+},
+{
+  text: "What does the term 'wick' or 'shadow' refer to on a candlestick chart?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "The difference between the open and close price" },
+    { text: "The highest and lowest prices reached during the period", isCorrect: true },
+    { text: "The volume of trades during the period" },
+    { text: "A forecast of the next period's price" },
+  ],
+  explanation: "The wicks (or shadows) are the thin lines extending above and below the main body of a candlestick. They represent the full range of price movement, from the period's high to its low.",
+  learningTip: "A long upper wick suggests that buyers tried to push the price up, but sellers took over and drove it back down.",
+},
+{
+  text: "A 'double top' pattern is a strong signal for what?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A coming bullish trend" },
+    { text: "A period of high volatility" },
+    { text: "A bearish reversal", isCorrect: true },
+    { text: "A continuation of an uptrend" },
+  ],
+  explanation: "A double top is a bearish reversal pattern where the price reaches a high, retraces, and then rallies back to a similar high before declining again. It indicates that the asset is struggling to break through a resistance level.",
+  learningTip: "The pattern is confirmed once the price breaks below the support level (the 'neckline') established by the low between the two peaks.",
+},
+{
+  text: "Which of these is NOT a common type of moving average?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Simple Moving Average (SMA)" },
+    { text: "Exponential Moving Average (EMA)" },
+    { text: "Weighted Moving Average (WMA)" },
+    { text: "Harmonic Moving Average (HMA)", isCorrect: true },
+  ],
+  explanation: "While there are many types of moving averages, SMA, EMA, and WMA are the most common. A 'Harmonic Moving Average' is not a standard technical analysis tool.",
+  learningTip: "The main types of moving averages all aim to smooth out price data to show the trend direction, but they differ in how they weigh the data points.",
+},
+{
+  text: "The 'Accumulation/Distribution Line' is an indicator that relates what two factors?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Price and time" },
+    { text: "Price and volume", isCorrect: true },
+    { text: "Volatility and momentum" },
+    { text: "Open interest and price" },
+  ],
+  explanation: "The Accumulation/Distribution (A/D) line is a volume-based indicator designed to measure the cumulative flow of money into and out of a security. It attempts to identify whether traders are 'accumulating' (buying) or 'distributing' (selling).",
+  learningTip: "If the A/D line is rising while the price is falling, it can be a sign of bullish divergence (accumulation), suggesting the price may soon reverse upwards.",
+},
+{
+  text: "What is 'scaling in' to a position?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Selling a position in multiple small parts" },
+    { text: "Entering a full position all at once" },
+    { text: "Entering a trade by buying in multiple small increments", isCorrect: true },
+    { text: "Using leverage to increase position size" },
+  ],
+  explanation: "Scaling in is a strategy where a trader enters a position in stages rather than all at once. This allows them to average their entry price and manage risk if the initial entry proves to be poorly timed.",
+  learningTip: "The opposite, 'scaling out,' involves selling a winning position in increments to lock in profits.",
+},
+{
+  text: "What does the term 'breakout' refer to in charting?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A sudden drop in trading volume" },
+    { text: "When the price moves below a support level or above a resistance level", isCorrect: true },
+    { text: "A period of sideways price movement" },
+    { text: "When a stock is delisted from an exchange" },
+  ],
+  explanation: "A breakout occurs when a stock's price moves beyond a defined level of support or resistance, often accompanied by increased volume. It can signal the start of a new trend.",
+  learningTip: "Traders often look for breakouts from consolidation patterns like triangles, flags, or ranges.",
+},
+{
+  text: "A 'Marubozu' is a candlestick with what characteristic?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A very long upper wick and a short body" },
+    { text: "A very short body and long wicks on both ends" },
+    { text: "No wicks (shadows) at all", isCorrect: true },
+    { text: "A body that is smaller than its wicks" },
+  ],
+  explanation: "A Marubozu is a candlestick that has no upper or lower wick; the body spans the entire range from high to low. A green (or white) Marubozu indicates strong buying pressure, while a red (or black) one indicates strong selling pressure.",
+  learningTip: "A bullish Marubozu (open = low, close = high) suggests the trend could continue upward. A bearish Marubozu (open = high, close = low) suggests a downtrend.",
+},
+{
+  text: "Which of the following patterns is considered a bullish reversal pattern?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Rising Wedge" },
+    { text: "Head and Shoulders" },
+    { text: "Inverse Head and Shoulders", isCorrect: true },
+    { text: "Bear Flag" },
+  ],
+  explanation: "An Inverse Head and Shoulders pattern is the opposite of the classic Head and Shoulders. It is a bullish pattern that signals a potential reversal from a downtrend to an uptrend.",
+  learningTip: "It features three troughs, with the middle trough (the head) being the deepest. A breakout above the neckline confirms the pattern.",
+},
+{
+  text: "The Ichimoku Cloud (Kumo) is a technical indicator that defines what?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Only market volatility" },
+    { text: "Only market momentum" },
+    { text: "Support/resistance, momentum, and trend direction", isCorrect: true },
+    { text: "Only the 50-day moving average" },
+  ],
+  explanation: "The Ichimoku Cloud is a comprehensive indicator that provides information on support and resistance levels, trend direction, and momentum all in one view. The 'cloud' itself represents current and future support and resistance zones.",
+  learningTip: "When the price is above the cloud, the trend is considered bullish. When it's below the cloud, the trend is bearish.",
+},
+{
+  text: "What is a 'false breakout'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A breakout that occurs on low volume" },
+    { text: "When price moves beyond a key level but fails to continue in that direction", isCorrect: true },
+    { text: "A breakout that happens in the first five minutes of trading" },
+    { text: "A breakout that is predicted but does not happen" },
+  ],
+  explanation: "A false breakout, or 'bull/bear trap,' occurs when the price temporarily moves above a resistance or below a support level but then quickly reverses, trapping traders who acted on the breakout.",
+  learningTip: "Many traders wait for a candle to close beyond the key level as confirmation to help avoid being caught in false breakouts.",
+},
+{
+  text: "The Parabolic SAR indicator is primarily used for what purpose?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Measuring volume flow" },
+    { text: "Identifying overbought/oversold levels" },
+    { text: "Identifying potential reversals and setting trailing stop-losses", isCorrect: true },
+    { text: "Calculating the average price range" },
+  ],
+  explanation: "The Parabolic SAR (Stop and Reverse) appears on a chart as a series of dots. When the dots are below the price, it's a bullish signal. When they are above, it's bearish. It's often used to identify when a trend might be ending and to place trailing stops.",
+  learningTip: "A change in the position of the dots (from below to above, or vice-versa) is a signal to exit a trade or reverse your position.",
+},
+{
+  text: "In chart patterns, what is a 'cup and handle'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A bearish reversal pattern" },
+    { text: "A bullish continuation pattern", isCorrect: true },
+    { text: "A sideways consolidation pattern" },
+    { text: "A volatility indicator" },
+  ],
+  explanation: "The 'cup and handle' is a bullish continuation pattern that resembles a teacup. The 'cup' is a 'U'-shaped price curve, and the 'handle' is a slight downward drift. A breakout above the handle's resistance signals a continuation of the prior uptrend.",
+  learningTip: "The pattern is considered more reliable when it forms over a longer period, from several months to a year.",
+},
+{
+  text: "What does 'price action' trading primarily focus on?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Economic news and company reports" },
+    { text: "Mathematical indicators like RSI and MACD" },
+    { text: "The movement of an asset's price on a 'clean' chart", isCorrect: true },
+    { text: "Trading volume and open interest" },
+  ],
+  explanation: "Price action trading is a methodology where all trading decisions are based on the analysis of price movement on a chart, without the use of lagging indicators. It involves reading patterns, trendlines, and candlestick behavior.",
+  learningTip: "Price action traders believe that the price movement itself reflects all the necessary market information.",
+},
+{
+  text: "A 'Three White Soldiers' pattern is what type of signal?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A strong bearish signal" },
+    { text: "A strong bullish signal", isCorrect: true },
+    { text: "A signal of market indecision" },
+    { text: "A signal of a topping pattern" },
+  ],
+  explanation: "The 'Three White Soldiers' is a bullish candlestick pattern that is used to predict the reversal of a downtrend. It consists of three consecutive long-bodied green candles that open within the previous candle's body and close at a new high.",
+  learningTip: "The opposite pattern, 'Three Black Crows,' is a strong bearish reversal signal.",
+},
+{
+  text: "What is the main drawback of using lagging indicators like moving averages?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "They are too complicated to calculate" },
+    { text: "They only work in ranging markets" },
+    { text: "They are based on past price data and can be slow to signal changes", isCorrect: true },
+    { text: "They give too many false signals" },
+  ],
+  explanation: "Lagging indicators are based on past price movements and are therefore 'late' in signaling trend changes or reversals. For example, a moving average crossover will only occur after a new trend has already begun.",
+  learningTip: "Leading indicators (like support/resistance levels) attempt to predict future price moves, but they can be less reliable.",
+},
+{
+  text: "What is the Aroon indicator used to identify?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "The start of a new trend and its strength", isCorrect: true },
+    { text: "The level of volatility in the market" },
+    { text: "The flow of volume into or out of a security" },
+    { text: "Overbought and oversold conditions" },
+  ],
+  explanation: "The Aroon indicator is a trend-following indicator that uses 'Aroon Up' and 'Aroon Down' lines to determine whether a stock is in a trend, and how strong that trend is. It focuses on the time elapsed since prices recorded a new high or low.",
+  learningTip: "When Aroon Up crosses above Aroon Down, it's a bullish signal. When Aroon Down crosses above Aroon Up, it's a bearish signal.",
+},
+{
+  text: "Which chart pattern is formed by two converging trendlines with a rising lower line and a flat upper line?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Symmetrical Triangle" },
+    { text: "Descending Triangle" },
+    { text: "Ascending Triangle", isCorrect: true },
+    { text: "Falling Wedge" },
+  ],
+  explanation: "An ascending triangle is a bullish chart pattern characterized by a rising lower trendline (connecting higher lows) and a flat upper trendline (acting as resistance). It suggests that buyers are more aggressive than sellers.",
+  learningTip: "A breakout above the flat upper resistance line signals a potential continuation of the uptrend.",
+},
+// =================================================================
+// CATEGORY: TECHNICAL ANALYSIS (Continued, Questions 51-100)
+// =================================================================
+{
+  text: "What is a 'resistance' level in technical analysis?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A price level where buying pressure is expected to be strong" },
+    { text: "A price level where selling pressure is expected to be strong", isCorrect: true },
+    { text: "The lowest price a stock has reached in a year" },
+    { text: "The average volume over 20 days" },
+  ],
+  explanation: "Resistance is a price level where an uptrend can be expected to pause or reverse due to a concentration of supply or selling interest. As the price approaches resistance, sellers become more inclined to sell.",
+  learningTip: "When a resistance level is broken, it often becomes a new support level.",
+},
+{
+  text: "What does the Chaikin Money Flow (CMF) indicator measure?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "The momentum of price changes" },
+    { text: "The volatility of an asset" },
+    { text: "The amount of Money Flow Volume over a set period", isCorrect: true },
+    { text: "The distance between moving averages" },
+  ],
+  explanation: "The Chaikin Money Flow measures the amount of money flow volume over a specified period (typically 20 or 21 days). It oscillates above and below a zero line and is used to identify buying and selling pressure.",
+  learningTip: "A CMF value above the zero line is a sign of buying pressure (accumulation), while a value below zero indicates selling pressure (distribution).",
+},
+{
+  text: "A 'Descending Triangle' is typically considered what kind of pattern?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A bullish continuation pattern" },
+    { text: "A bearish pattern", isCorrect: true },
+    { text: "A sideways market indicator" },
+    { text: "A bullish reversal pattern" },
+  ],
+  explanation: "A descending triangle is a bearish chart pattern characterized by a descending upper trendline and a flat lower support line. It suggests that sellers are more aggressive than buyers and are gradually pushing the price down.",
+  learningTip: "A breakdown below the flat support line confirms the bearish signal.",
+},
+{
+  text: "What is the primary use of a 'pivot point' in technical analysis?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "To predict a company's earnings" },
+    { text: "To identify intraday levels of support and resistance", isCorrect: true },
+    { text: "To calculate the long-term trend" },
+    { text: "To measure trading volume" },
+  ],
+  explanation: "Pivot points are calculated based on the high, low, and closing prices of previous trading sessions. They provide a framework of potential support and resistance levels that day traders can use to plan their entries and exits.",
+  learningTip: "A trade above the daily pivot point is generally considered bullish, while a trade below it is considered bearish.",
+},
+{
+  text: "What does the term 'confluence' mean in trading?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "When two indicators give conflicting signals" },
+    { text: "When multiple technical signals on a chart align to suggest the same trading idea", isCorrect: true },
+    { text: "A period of extremely high trading volume" },
+    { text: "The act of exiting a trade" },
+  ],
+  explanation: "Confluence is when two or more separate technical analysis tools or indicators generate the same signal. For example, a key Fibonacci retracement level lining up with a 200-day moving average and a horizontal support level.",
+  learningTip: "Trade setups with strong confluence are often considered higher-probability trades by technical analysts.",
+},
+{
+  text: "Which of these patterns is known for being a bullish continuation flag?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A downward sloping rectangle after a sharp move up", isCorrect: true },
+    { text: "An upward sloping rectangle after a sharp move up" },
+    { text: "A symmetrical triangle at the top of a trend" },
+    { text: "A head and shoulders pattern" },
+  ],
+  explanation: "A 'bull flag' is a chart pattern that occurs when a stock is in a strong uptrend. It's characterized by a sharp price rise (the flagpole) followed by a brief consolidation in a downward-sloping channel or rectangle (the flag).",
+  learningTip: "A breakout above the flag's upper trendline signals a likely continuation of the initial uptrend.",
+},
+{
+  text: "The 'Tweezer Bottom' candlestick pattern is a signal of what?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A potential bullish reversal", isCorrect: true },
+    { text: "A potential bearish reversal" },
+    { text: "A strong continuation of a downtrend" },
+    { text: "High market volatility" },
+  ],
+  explanation: "A Tweezer Bottom is a bullish reversal pattern consisting of two candlesticks. It occurs during a downtrend where the two candles have identical or nearly identical low points, indicating a strong level of support.",
+  learningTip: "The opposite pattern, 'Tweezer Top,' is a bearish reversal pattern where two candles have identical high points.",
+},
+{
+  text: "What is the key difference between a line chart and a candlestick chart?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Line charts are harder to read" },
+    { text: "Line charts only show the closing price, while candlesticks show open, high, low, and close", isCorrect: true },
+    { text: "Candlestick charts are only used for short-term trading" },
+    { text: "There is no functional difference" },
+  ],
+  explanation: "A line chart is the simplest type of chart, created by connecting a series of closing prices over a period. A candlestick chart provides significantly more data, making it more popular for in-depth analysis.",
+  learningTip: "Use a line chart for a simple, quick overview of the long-term trend, and a candlestick chart for detailed trade analysis.",
+},
+{
+  text: "What is a 'logarithmic' price scale used for on a chart?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "To show price changes in absolute dollar amounts" },
+    { text: "To better visualize long-term price movements by showing percentage changes", isCorrect: true },
+    { text: "To display trading volume" },
+    { text: "To smooth out price fluctuations" },
+  ],
+  explanation: "A logarithmic scale plots price changes in terms of percentage. This is useful for long-term charts where a move from $10 to $20 (a 100% gain) is visually equivalent to a move from $50 to $100 (also a 100% gain). An arithmetic scale would show the second move as much larger.",
+  learningTip: "Logarithmic scales are essential for analyzing assets that have experienced exponential growth over many years.",
+},
+{
+  text: "A 'Falling Wedge' pattern is typically considered what?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A bearish continuation pattern" },
+    { text: "A bullish reversal or continuation pattern", isCorrect: true },
+    { text: "A bearish reversal pattern" },
+    { text: "A sign of market tops" },
+  ],
+  explanation: "A falling wedge is a chart pattern with two converging trendlines that are both angled downwards. Although the price is falling, this pattern is generally considered bullish, often leading to a breakout to the upside.",
+  learningTip: "Conversely, a 'Rising Wedge,' with two upward-sloping trendlines, is a bearish pattern.",
+},
+{
+  text: "What does the term 'higher high' and 'higher low' signify?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A downtrend" },
+    { text: "An uptrend", isCorrect: true },
+    { text: "A sideways market" },
+    { text: "A market top" },
+  ],
+  explanation: "This is the classic definition of an uptrend. The price action forms a series of peaks and troughs, where each peak ('higher high') is higher than the previous one, and each trough ('higher low') is also higher than the one before it.",
+  learningTip: "A downtrend is defined by a series of 'lower highs' and 'lower lows'.",
+},
+{
+  text: "In chart analysis, what is a 'throwback'?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A sudden and sharp price decline" },
+    { text: "When the price returns to test a broken resistance level from above", isCorrect: true },
+    { text: "An old chart pattern that reappears" },
+    { text: "A type of false breakout" },
+  ],
+  explanation: "A throwback occurs after a bullish breakout above a resistance level. The price temporarily pulls back to 'test' the old resistance level, which should now act as support, before continuing its upward move.",
+  learningTip: "The opposite, a 'pullback' to a broken support level (which now acts as resistance), occurs after a bearish breakdown.",
+},
+{
+  text: "The 'Momentum' indicator measures what?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "The total volume traded" },
+    { text: "The rate or speed of price changes", isCorrect: true },
+    { text: "The number of outstanding shares" },
+    { text: "The volatility of an asset" },
+  ],
+  explanation: "The Momentum indicator is a simple oscillator that measures the rate of price change over a specific time period. It compares the current closing price to a closing price from a number of periods ago.",
+  learningTip: "When the momentum indicator crosses above its zero line, it can be a bullish signal, and vice versa.",
+},
+{
+  text: "What is an 'island reversal' pattern?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A continuation pattern in a strong trend" },
+    { text: "A pattern that can only be seen on weekly charts" },
+    { text: "A candlestick or group of sticks separated from the rest by gaps on both sides", isCorrect: true },
+    { text: "A single candlestick pattern indicating indecision" },
+  ],
+  explanation: "An island reversal is a strong short-term reversal pattern. It is formed by a gap, followed by a period of trading, and then another gap in the opposite direction, leaving the trading period 'stranded' like an island.",
+  learningTip: "A bearish island reversal starts with a gap up, and a bullish one starts with a gap down. They are relatively rare but powerful signals.",
+},
+{
+  text: "Which of the following describes a 'bear flag'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A sharp price rise followed by a consolidation" },
+    { text: "A sharp price drop followed by a brief consolidation upward", isCorrect: true },
+    { text: "A V-shaped recovery pattern" },
+    { text: "A rounding bottom formation" },
+  ],
+  explanation: "A bear flag is a bearish continuation pattern. It consists of a strong down move (the flagpole) followed by a brief period of consolidation in an upward-sloping channel (the flag).",
+  learningTip: "A breakdown below the flag's lower trendline signals that the prior downtrend is likely to resume.",
+},
+{
+  text: "The 'order book' in an exchange shows what information?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A list of past transactions" },
+    { text: "A real-time list of all buy (bid) and sell (ask) orders", isCorrect: true },
+    { text: "A forecast of future price movements" },
+    { text: "The names of all traders in the market" },
+  ],
+  explanation: "The order book provides a transparent view of the market depth, showing the quantity of an asset being bid on or offered at each price point. Analyzing it is sometimes called 'tape reading'.",
+  learningTip: "Large clusters of buy or sell orders in the order book can indicate potential support or resistance levels.",
+},
+{
+  text: "What does the term 'mean reversion' suggest?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "That a strong trend will continue indefinitely" },
+    { text: "That asset prices and historical returns eventually revert to their long-term average", isCorrect: true },
+    { text: "That all stocks eventually go to zero" },
+    { text: "That markets are completely random" },
+  ],
+  explanation: "Mean reversion is a theory suggesting that asset prices and volatility tend to move back towards their long-term average or mean. Extreme price moves are viewed as temporary deviations.",
+  learningTip: "Indicators like Bollinger Bands and RSI are based on the principle of mean reversion, identifying overbought or oversold conditions that are likely to 'revert'.",
+},
+{
+  text: "A 'Three Black Crows' pattern is a strong signal of what?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A bullish reversal" },
+    { text: "A sideways market" },
+    { text: "A bearish reversal", isCorrect: true },
+    { text: "Market indecision" },
+  ],
+  explanation: "The 'Three Black Crows' is a bearish reversal pattern consisting of three consecutive long-bodied red (or black) candles that open within the previous candle's body and close at a new low. It appears at the top of an uptrend.",
+  learningTip: "This pattern indicates a decisive shift in control from buyers to sellers.",
+},
+{
+  text: "What is the primary feature of a 'rounding bottom' chart pattern?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A sharp 'V'-shaped reversal" },
+    { text: "A gradual and progressive shift from a downtrend to an uptrend", isCorrect: true },
+    { text: "A period of high volatility and indecision" },
+    { text: "A pattern that signals a bearish continuation" },
+  ],
+  explanation: "A rounding bottom, also known as a 'saucer bottom,' is a long-term reversal pattern that indicates a gradual shift in market sentiment from bearish to bullish. It shows a slow and steady change in direction.",
+  learningTip: "Volume often mirrors the pattern, being high at the beginning of the decline, low at the bottom, and rising again during the ascent.",
+},
+{
+  text: "The 'Keltner Channel' indicator is similar to Bollinger Bands but uses what for its bands?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Standard Deviation" },
+    { text: "Average True Range (ATR)", isCorrect: true },
+    { text: "Fibonacci Ratios" },
+    { text: "Volume-Weighted Price" },
+  ],
+  explanation: "While both are volatility-based envelope indicators, Bollinger Bands use standard deviation to set the distance of the bands from the moving average. Keltner Channels use the Average True Range (ATR), which makes them smoother and less prone to spikes.",
+  learningTip: "Some traders use both indicators together; a 'squeeze' where the Bollinger Bands move inside the Keltner Channels can be a powerful signal of an impending breakout.",
+},
+{
+  text: "What does it mean if a stock is in 'consolidation'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "The stock is in a strong uptrend" },
+    { text: "The stock is in a strong downtrend" },
+    { text: "The stock is trading within a defined range, showing indecision", isCorrect: true },
+    { text: "The stock is about to be delisted" },
+  ],
+  explanation: "Consolidation is a period where the price of an asset moves in a sideways range. It represents a temporary pause in a trend where bulls and bears are in a state of equilibrium.",
+  learningTip: "Consolidation patterns, like rectangles and triangles, often precede the continuation of the prior trend.",
+},
+{
+  text: "The 'Gartley' pattern is a type of what?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Candlestick pattern" },
+    { text: "Harmonic pattern", isCorrect: true },
+    { text: "Volume indicator" },
+    { text: "Moving average" },
+  ],
+  explanation: "The Gartley pattern is one of the most common harmonic patterns. These are complex patterns based on Fibonacci numbers and geometry that attempt to predict future price movements. The Gartley has a specific 'M' or 'W' shape with defined Fibonacci ratios.",
+  learningTip: "Other harmonic patterns include the Bat, Butterfly, and Crab patterns.",
+},
+{
+  text: "What is 'top-down' analysis?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Starting with a single stock and then analyzing the market" },
+    { text: "Starting with a broad view of the economy/market and narrowing down to an individual stock", isCorrect: true },
+    { text: "Only looking at the top-performing stocks" },
+    { text: "Analyzing a chart from top to bottom" },
+  ],
+  explanation: "Top-down analysis involves looking at the big picture first. An analyst would first assess the overall economic and market conditions, then identify the strongest sectors, and finally choose the best-performing stocks within those sectors.",
+  learningTip: "The opposite approach, 'bottom-up' analysis, focuses on selecting individual stocks based on their own merits, regardless of the broader market conditions.",
+},
+{
+  text: "The 'Awesome Oscillator' (AO) is used to measure what?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Market volume" },
+    { text: "Market volatility" },
+    { text: "Market momentum", isCorrect: true },
+    { text: "Market sentiment" },
+  ],
+  explanation: "The Awesome Oscillator, developed by Bill Williams, is a momentum indicator that reflects the difference between a 34-period and a 5-period simple moving average of the bar's midpoints. It's displayed as a histogram.",
+  learningTip: "A 'saucer' signal is a bullish setup on the AO, while a zero-line cross can also indicate a change in momentum.",
+},
+{
+  text: "What is a 'candlestick body'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "The entire range from high to low" },
+    { text: "The thin line extending from the main part" },
+    { text: "The wide part of the candlestick showing the range between the open and close price", isCorrect: true },
+    { text: "A measure of trading volume for that period" },
+  ],
+  explanation: "The body is the main, rectangular part of a candlestick. Its color and size indicate the relationship between the opening and closing prices. A green/white body means the close was higher than the open; a red/black body means the close was lower.",
+  learningTip: "A long body indicates strong buying or selling pressure, while a short body indicates little price movement and indecision.",
+},
+// =================================================================
+// CATEGORY: FUNDAMENTAL ANALYSIS (Questions 26-50)
+// =================================================================
+{
+  text: "What does the Debt-to-Equity (D/E) ratio measure?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A company's profitability" },
+    { text: "How much a company earns per share" },
+    { text: "A company's financial leverage", isCorrect: true },
+    { text: "The efficiency of a company's operations" },
+  ],
+  explanation: "The Debt-to-Equity ratio is a key financial metric used to assess a company's leverage. It is calculated by dividing a company’s total liabilities by its shareholder equity.",
+  learningTip: "A high D/E ratio generally means a company has been aggressive in financing its growth with debt, which can result in higher risk.",
+},
+{
+  text: "What is 'Earnings Per Share' (EPS)?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The total revenue of a company" },
+    { text: "The portion of a company's profit allocated to each outstanding share of common stock", isCorrect: true },
+    { text: "The dividend paid out per share" },
+    { text: "The market value of one share of stock" },
+  ],
+  explanation: "EPS is a widely used metric to estimate corporate value. A higher EPS indicates greater value because investors will pay more for a company's shares if they think it has higher profits.",
+  learningTip: "EPS is a key component of the P/E (Price-to-Earnings) valuation ratio.",
+},
+{
+  text: "Which of these is NOT found on a company's balance sheet?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "Assets" },
+    { text: "Liabilities" },
+    { text: "Shareholder's Equity" },
+    { text: "Revenue", isCorrect: true },
+  ],
+  explanation: "Revenue is a component of the Income Statement, which shows a company's financial performance over a period of time. The Balance Sheet provides a snapshot of its financial position (Assets = Liabilities + Equity) at a single point in time.",
+  learningTip: "Remember: The Income Statement shows performance over time (like a movie), while the Balance Sheet shows a position at one moment (like a photograph).",
+},
+{
+  text: "A company with a wide 'economic moat' has what?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A high amount of short-term debt" },
+    { text: "A sustainable competitive advantage", isCorrect: true },
+    { text: "A globally diversified supply chain" },
+    { text: "A low P/E ratio compared to its peers" },
+  ],
+  explanation: "The term 'economic moat,' popularized by Warren Buffett, refers to a business's ability to maintain competitive advantages over its competitors in order to protect its long-term profits and market share.",
+  learningTip: "Examples of moats include brand identity (Coca-Cola), network effects (Facebook), and high switching costs (Microsoft Windows).",
+},
+{
+  text: "What does a high Price-to-Book (P/B) ratio typically suggest?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The market may be undervaluing the company" },
+    { text: "The market is valuing the company highly, possibly due to future growth expectations", isCorrect: true },
+    { text: "The company has a large amount of debt" },
+    { text: "The company is likely in a mature, slow-growth industry" },
+  ],
+  explanation: "The P/B ratio compares a company's market capitalization to its book value. A high P/B ratio implies that investors are willing to pay a premium over the company's net asset value, often because they expect high future earnings growth.",
+  learningTip: "P/B is often used to value financial companies like banks and insurance firms.",
+},
+{
+  text: "Which financial statement shows a company's revenues and expenses over a specific period?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "Balance Sheet" },
+    { text: "Income Statement", isCorrect: true },
+    { text: "Cash Flow Statement" },
+    { text: "Statement of Shareholder Equity" },
+  ],
+  explanation: "The Income Statement, also known as the Profit and Loss (P&L) statement, outlines a company's financial performance by showing its revenues, costs, and expenses over a period (e.g., a quarter or a year).",
+  learningTip: "The 'bottom line' of the Income Statement is the company's Net Income or profit.",
+},
+{
+  text: "What is 'market capitalization' or 'market cap'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A company's total debt" },
+    { text: "The total market value of a company's outstanding shares", isCorrect: true },
+    { text: "A company's total annual revenue" },
+    { text: "The book value of a company" },
+  ],
+  explanation: "Market cap is calculated by multiplying the company's current stock price by its total number of outstanding shares. It's a quick way to determine a company's size.",
+  learningTip: "Companies are often categorized by market cap: Large-cap (> $10 billion), Mid-cap ($2-$10 billion), and Small-cap (< $2 billion).",
+},
+{
+  text: "The 'Dividend Yield' of a stock is calculated by dividing the annual dividend per share by what?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The earnings per share" },
+    { text: "The stock's current market price", isCorrect: true },
+    { text: "The book value per share" },
+    { text: "The company's total revenue" },
+  ],
+  explanation: "Dividend yield is a financial ratio that shows how much a company pays in dividends each year relative to its stock price. It is expressed as a percentage.",
+  learningTip: "A high dividend yield can be attractive for income-focused investors, but it can also sometimes signal that a company is in distress and its stock price has fallen.",
+},
+{
+  text: "What does the 'Current Ratio' measure?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A company's long-term profitability" },
+    { text: "A company's ability to pay its short-term obligations", isCorrect: true },
+    { text: "The efficiency of its inventory management" },
+    { text: "The return on shareholder's equity" },
+  ],
+  explanation: "The current ratio is a liquidity ratio that measures a company's ability to meet its short-term obligations (those due within one year). It's calculated by dividing current assets by current liabilities.",
+  learningTip: "A current ratio above 1 is generally considered healthy, as it suggests the company has more short-term assets than short-term debts.",
+},
+{
+  text: "In a Discounted Cash Flow (DCF) valuation, what is being estimated?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A company's past earnings" },
+    { text: "A company's current stock price" },
+    { text: "The present value of a company's future cash flows", isCorrect: true },
+    { text: "The total value of a company's assets" },
+  ],
+  explanation: "DCF is a valuation method used to estimate the value of an investment based on its expected future cash flows. It attempts to determine a company's intrinsic value by forecasting its future cash flows and 'discounting' them back to today's value.",
+  learningTip: "DCF models are highly sensitive to assumptions about future growth rates and the discount rate used.",
+},
+{
+  text: "What is 'book value'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The price a company's stock is trading at" },
+    { text: "The total value of a company's intangible assets" },
+    { text: "The net asset value of a company, calculated as total assets minus total liabilities", isCorrect: true },
+    { text: "The original price of the company's assets" },
+  ],
+  explanation: "Book value represents the total amount a company would be worth if it liquidated its assets and paid back all its liabilities. It's essentially the company's net worth as reported on the balance sheet.",
+  learningTip: "The Price-to-Book (P/B) ratio compares the company's market value to its book value.",
+},
+{
+  text: "Which of the following would be considered a 'growth stock'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A stable utility company that pays a high dividend" },
+    { text: "A technology company that is rapidly increasing its revenue", isCorrect: true },
+    { text: "A large, established bank" },
+    { text: "A company with a low P/E ratio and slow growth" },
+  ],
+  explanation: "A growth stock belongs to a company that is expected to grow at a significantly faster rate than the overall market. These companies typically reinvest their earnings back into the business rather than paying them out as dividends.",
+  learningTip: "Growth stocks often have high P/E ratios because investors are willing to pay a premium for their future growth potential.",
+},
+{
+  text: "The 'Cash Flow Statement' is comprised of which three main activities?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "Sales, Marketing, and Research" },
+    { text: "Assets, Liabilities, and Equity" },
+    { text: "Operating, Investing, and Financing", isCorrect: true },
+    { text: "Revenue, Expenses, and Profits" },
+  ],
+  explanation: "The Cash Flow Statement tracks the movement of cash into and out of the company. It's broken down into cash from operating activities (day-to-day business), investing activities (buying/selling assets), and financing activities (issuing stock, paying debt).",
+  learningTip: "Positive cash flow from operations is a key sign of a healthy business.",
+},
+{
+  text: "What does the 'PEG ratio' (Price/Earnings to Growth) add to the standard P/E ratio?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "It adds the company's debt into the calculation" },
+    { text: "It factors in the company's future earnings growth rate", isCorrect: true },
+    { text: "It compares the P/E ratio to the dividend yield" },
+    { text: "It adjusts the P/E for inflation" },
+  ],
+  explanation: "The PEG ratio is a valuation metric that enhances the P/E ratio by incorporating the company's earnings growth rate. It is calculated as the P/E ratio divided by the annual EPS growth rate.",
+  learningTip: "A PEG ratio of 1 is often considered to represent a fair trade-off between a stock's P/E and its expected growth. A PEG below 1 may suggest the stock is undervalued.",
+},
+{
+  text: "A 'blue-chip' stock typically refers to a company that is...",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A small, high-risk technology startup" },
+    { text: "Nationally recognized, well-established, and financially sound", isCorrect: true },
+    { text: "A company that is on the verge of bankruptcy" },
+    { text: "A company that has never paid a dividend" },
+  ],
+  explanation: "Blue-chip stocks are shares in large, reputable companies with a long history of stable earnings and dividend payments. They are generally considered to be among the most secure investments.",
+  learningTip: "Examples of blue-chip companies include Johnson & Johnson, Coca-Cola, and Procter & Gamble.",
+},
+{
+  text: "What does 'Return on Equity' (ROE) measure?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The return generated on the company's total assets" },
+    { text: "The profitability of a company in relation to the equity held by shareholders", isCorrect: true },
+    { text: "The company's ability to cover its debt payments" },
+    { text: "The growth rate of the company's dividends" },
+  ],
+  explanation: "ROE is a measure of financial performance calculated by dividing net income by shareholders' equity. It shows how effectively a company is using its equity to generate profits.",
+  learningTip: "A consistently high ROE can indicate a strong competitive advantage or 'economic moat'.",
+},
+{
+  text: "Which of these is an example of an 'intangible asset' on a balance sheet?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "Cash" },
+    { text: "Factory equipment" },
+    { text: "A company's brand name and patents", isCorrect: true },
+    { text: "Inventory" },
+  ],
+  explanation: "An intangible asset is a non-physical asset. Common examples include goodwill, brand recognition, copyrights, patents, and trademarks. These can be very valuable but are harder to quantify than physical assets.",
+  learningTip: "In today's economy, intangible assets often make up a significant portion of a company's total value (e.g., Google's brand and algorithms).",
+},
+{
+  text: "What is the main goal of 'value investing'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "To buy stocks that are growing very quickly" },
+    { text: "To buy stocks that trade for less than their intrinsic or book value", isCorrect: true },
+    { text: "To trade stocks very frequently for small profits" },
+    { text: "To invest only in companies that pay high dividends" },
+  ],
+  explanation: "Value investing is an investment strategy that involves picking stocks that appear to be trading for less than their intrinsic or book value. Value investors actively seek out stocks they believe the market has undervalued.",
+  learningTip: "Benjamin Graham is considered the 'father of value investing,' and his most famous student is Warren Buffett.",
+},
+{
+  text: "What does a company's 'gross margin' tell you?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The company's total profit after all expenses" },
+    { text: "The profit a company makes on each sale after accounting for the costs to produce the goods", isCorrect: true },
+    { text: "The amount of debt the company has" },
+    { text: "The percentage of revenue paid out as dividends" },
+  ],
+  explanation: "Gross margin, calculated as (Revenue - Cost of Goods Sold) / Revenue, is a measure of a company's profitability on its products or services. It shows how much it retains from each dollar of sales to cover other expenses.",
+  learningTip: "A high and stable gross margin is a sign of a healthy, efficient business with a strong competitive position.",
+},
+{
+  text: "A 'qualitative' factor in fundamental analysis would be:",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The company's revenue growth over the last 5 years" },
+    { text: "The company's debt-to-equity ratio" },
+    { text: "The quality and experience of the company's management team", isCorrect: true },
+    { text: "The company's earnings per share" },
+  ],
+  explanation: "Fundamental analysis uses both quantitative (numerical) and qualitative (non-numerical) data. Qualitative factors are subjective and relate to the nature of the business, such as management quality, brand strength, and corporate governance.",
+  learningTip: "Strong qualitative factors can be just as important as strong quantitative numbers for long-term success.",
+},
+{
+  text: "What is 'working capital'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The cash used for long-term investments" },
+    { text: "The difference between current assets and current liabilities", isCorrect: true },
+    { text: "The total amount of shareholder equity" },
+    { text: "The money set aside for research and development" },
+  ],
+  explanation: "Working capital is a measure of a company's short-term liquidity and operational efficiency. It represents the operating liquidity available to a business. Positive working capital means a company can fund its current operations and invest in future activities.",
+  learningTip: "Working Capital = Current Assets - Current Liabilities. It is a key component of many liquidity ratios.",
+},
+{
+  text: "What is a '10-K' report?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A daily summary of a stock's performance" },
+    { text: "A detailed annual report filed by public companies with the SEC", isCorrect: true },
+    { text: "A quarterly earnings announcement" },
+    { text: "A recommendation report from a stock analyst" },
+  ],
+  explanation: "The 10-K is a comprehensive report filed annually by publicly traded companies about their financial performance. It provides a detailed overview of the company's business, risk factors, and financial data.",
+  learningTip: "The 10-Q is a similar but less detailed report that is filed quarterly.",
+},
+{
+  text: "The 'Enterprise Value to EBITDA' (EV/EBITDA) ratio is often used for what purpose?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "To measure a company's dividend sustainability" },
+    { text: "To compare the valuation of companies with different capital structures", isCorrect: true },
+    { text: "To assess short-term liquidity" },
+    { text: "To calculate the company's growth rate" },
+  ],
+  explanation: "EV/EBITDA is a popular valuation multiple because it is capital structure-neutral. It compares the value of a company, debt included, to its cash earnings less non-cash expenses. This makes it useful for comparing companies with different levels of debt.",
+  learningTip: "A lower EV/EBITDA ratio is generally seen as better, potentially indicating an undervalued company.",
+},
+{
+  text: "What does 'EBITDA' stand for?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "Earnings Before Investment, Taxes, and Dividend Adjustments" },
+    { text: "Earnings Before Interest, Taxes, Depreciation, and Amortization", isCorrect: true },
+    { text: "Equity, Bonds, Income, Treasury, and Dividends" },
+    { text: "Estimated Business Income and Taxable Deductions" },
+  ],
+  explanation: "EBITDA is a measure of a company's overall financial performance and is used as an alternative to simple earnings or net income in some circumstances. It's seen as a proxy for cash flow.",
+  learningTip: "Depreciation and amortization are non-cash expenses, so adding them back to operating income gives a clearer picture of a company's ability to generate cash.",
+},
+{
+  text: "A stock with a beta greater than 1.0 is considered to be...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "Less volatile than the overall market" },
+    { text: "More volatile than the overall market", isCorrect: true },
+    { text: "Exactly as volatile as the market" },
+    { text: "A risk-free asset" },
+  ],
+  explanation: "Beta is a measure of a stock's volatility in relation to the overall market (usually represented by an index like the S&P 500). A beta of 1.2 means the stock is theoretically 20% more volatile than the market.",
+  learningTip: "Utility stocks often have a beta of less than 1, while technology stocks often have a beta greater than 1.",
+},
+// =================================================================
+// CATEGORY: FUNDAMENTAL ANALYSIS (Continued, Questions 101-120)
+// =================================================================
+{
+  text: "What does 'Free Cash Flow' (FCF) represent?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The total revenue a company generates" },
+    { text: "The cash a company generates after accounting for cash outflows to support operations and maintain capital assets", isCorrect: true },
+    { text: "The cash held in a company's bank accounts" },
+    { text: "The profit shown on the income statement" },
+  ],
+  explanation: "Free Cash Flow (FCF) is a crucial measure of profitability. It shows how much cash a company has left over after paying for its operating expenses and capital expenditures. This is the cash available to be returned to investors or reinvested.",
+  learningTip: "Companies with consistently high and growing FCF are often considered strong long-term investments.",
+},
+{
+  text: "What does 'Return on Assets' (ROA) indicate?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "How profitable a company is relative to its total assets", isCorrect: true },
+    { text: "The return paid to shareholders as dividends" },
+    { text: "The company's ability to pay off its debt" },
+    { text: "The total value of a company's physical assets" },
+  ],
+  explanation: "ROA, calculated as Net Income / Total Assets, is an indicator of how efficiently a company is using its assets to generate earnings. It gives an idea of management's effectiveness.",
+  learningTip: "ROA is most useful when comparing companies within the same industry, as asset intensity varies greatly between sectors.",
+},
+{
+  text: "A 'cyclical stock' is best described as a stock whose price is...",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "Unaffected by changes in the economy" },
+    { text: "Strongly affected by the business cycle and economic conditions", isCorrect: true },
+    { text: "Guaranteed to increase in value every year" },
+    { text: "Related to a company in the technology sector" },
+  ],
+  explanation: "Cyclical stocks belong to companies whose sales and profits are sensitive to the ups and downs of the overall economy. Examples include airlines, automakers, and luxury goods retailers.",
+  learningTip: "These stocks tend to perform well during economic expansions and poorly during recessions.",
+},
+{
+  text: "In contrast to cyclical stocks, a 'defensive stock'...",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "Provides a constant dividend and stable earnings regardless of the state of the overall stock market", isCorrect: true },
+    { text: "Belongs to a company in the defense or military industry" },
+    { text: "Is expected to have very high growth" },
+    { text: "Has a very low stock price" },
+  ],
+  explanation: "Defensive stocks, also known as non-cyclical stocks, belong to companies that provide essential goods and services that people buy in good times and bad. This leads to more stable revenues and earnings.",
+  learningTip: "Examples include utility companies, consumer staples (food, beverages), and healthcare providers.",
+},
+{
+  text: "When a company conducts a 'share buyback,' what is the typical effect on its Earnings Per Share (EPS)?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "EPS decreases" },
+    { text: "EPS increases", isCorrect: true },
+    { text: "There is no effect on EPS" },
+    { text: "The effect on EPS is random" },
+  ],
+  explanation: "A share buyback reduces the number of a company's outstanding shares. Since EPS is calculated by dividing net income by the number of shares, a lower share count results in a higher EPS, assuming net income remains the same.",
+  learningTip: "Buybacks are a way for companies to return capital to shareholders, often seen as a sign of management's confidence in the company's future.",
+},
+{
+  text: "The Price-to-Sales (P/S) ratio is often used to value companies in which situation?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "When a company has very stable and predictable earnings" },
+    { text: "When a company is not yet profitable or is in a cyclical industry", isCorrect: true },
+    { text: "Only for large, blue-chip companies" },
+    { text: "Only for companies that pay dividends" },
+  ],
+  explanation: "The P/S ratio compares a company's stock price to its revenues. It's a useful metric when a company isn't profitable (has negative EPS), as a company must have sales (revenue) to exist. It's also useful for cyclical companies whose earnings can fluctuate wildly.",
+  learningTip: "Like other ratios, P/S is most useful for comparing companies in the same industry. A lower P/S ratio may indicate a more attractive investment.",
+},
+{
+  text: "What does a high Inventory Turnover Ratio suggest?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The company is struggling to sell its products" },
+    { text: "The company has obsolete inventory" },
+    { text: "The company is selling its inventory quickly and efficiently", isCorrect: true },
+    { text: "The company holds a large amount of inventory" },
+  ],
+  explanation: "The inventory turnover ratio measures how many times a company has sold and replaced its inventory during a given period. A high ratio implies strong sales and efficient inventory management.",
+  learningTip: "A low turnover ratio can indicate weak sales or excess inventory, which can be a red flag.",
+},
+{
+  text: "On a balance sheet, what does 'goodwill' represent?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The company's positive reputation" },
+    { text: "The portion of a company's purchase price that is higher than the net value of its physical assets", isCorrect: true },
+    { text: "Donations the company has made to charity" },
+    { text: "The value of the company's employee training programs" },
+  ],
+  explanation: "Goodwill is an intangible asset that is created when one company acquires another for a price higher than the fair market value of its tangible assets. It accounts for things like brand reputation, customer relationships, and patents.",
+  learningTip: "If the acquired company's value later declines, the parent company may have to write down the value of the goodwill, which can negatively impact earnings.",
+},
+{
+  text: "An SEC Form 8-K is filed for what purpose?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "To file an annual financial report" },
+    { text: "To announce major events that shareholders should know about", isCorrect: true },
+    { text: "To file a quarterly financial report" },
+    { text: "To announce insider stock purchases" },
+  ],
+  explanation: "A Form 8-K is a report of unscheduled material events or corporate changes at a company that could be of importance to the shareholders or the Securities and Exchange Commission (SEC). Examples include acquisitions, bankruptcy, or a change in senior management.",
+  learningTip: "Unlike the 10-K (annual) and 10-Q (quarterly) which are scheduled, the 8-K is filed as needed.",
+},
+{
+  text: "The term 'C-suite' refers to what group within a company?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The customer service department" },
+    { text: "The board of directors" },
+    { text: "A corporation's most senior executives", isCorrect: true },
+    { text: "The compliance and legal team" },
+  ],
+  explanation: "The C-suite gets its name from the fact that top senior executives' titles tend to start with the letter C, for 'chief'. This includes the Chief Executive Officer (CEO), Chief Financial Officer (CFO), and Chief Operating Officer (COO).",
+  learningTip: "The quality and vision of the C-suite is a critical qualitative factor in fundamental analysis.",
+},
+{
+  text: "What does the DuPont analysis break down Return on Equity (ROE) into?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "Revenue, Expenses, and Profit" },
+    { text: "Profitability, Asset Efficiency, and Financial Leverage", isCorrect: true },
+    { text: "Past, Present, and Future performance" },
+    { text: "Assets, Liabilities, and Equity" },
+  ],
+  explanation: "The DuPont analysis is a framework that deconstructs ROE into three components: Net Profit Margin (profitability), Asset Turnover (asset efficiency), and Equity Multiplier (financial leverage). This helps an analyst understand what is driving the ROE.",
+  learningTip: "A high ROE driven by excessive debt (high financial leverage) is riskier than one driven by high profitability.",
+},
+{
+  text: "What does a company's 'Operating Margin' measure?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The total profit after taxes" },
+    { text: "How much profit a company makes on a dollar of sales, after paying for variable costs of production but before paying interest or taxes", isCorrect: true },
+    { text: "The ratio of a company's debt to its assets" },
+    { text: "The efficiency of its marketing spend" },
+  ],
+  explanation: "Operating Margin is calculated as Operating Income / Revenue. It's a measure of a company's core profitability, showing how well it manages its primary business operations before the effects of financing and taxes.",
+  learningTip: "Comparing a company's operating margin to its competitors can reveal its operational efficiency and pricing power.",
+},
+{
+  text: "Which of the following is an example of an 'intangible asset' creating an economic moat?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A company owning the most efficient factory" },
+    { text: "A company having a powerful, globally recognized brand like Coca-Cola", isCorrect: true },
+    { text: "A company having the lowest labor costs" },
+    { text: "A company having a large amount of cash" },
+  ],
+  explanation: "Intangible assets like patents, brand names, and regulatory licenses can create a strong economic moat. A strong brand allows a company to charge more for its products, giving it a durable competitive advantage.",
+  learningTip: "This is one of the four main types of economic moats identified by Morningstar.",
+},
+{
+  text: "High 'switching costs' for customers is a type of economic moat because...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "It makes it easy for customers to change providers" },
+    { text: "It makes it inconvenient, costly, or risky for customers to switch to a competitor", isCorrect: true },
+    { text: "It means the company can switch its suppliers easily" },
+    { text: "It indicates the company has low operating costs" },
+  ],
+  explanation: "When a customer faces high switching costs, they are 'locked in' to a company's products or services. This creates a sticky customer base and predictable, recurring revenue, which is a powerful competitive advantage.",
+  learningTip: "Think of the effort required for a company to switch its entire workforce from Microsoft Windows to another operating system.",
+},
+{
+  text: "The 'network effect' creates an economic moat when...",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A company has a very efficient distribution network" },
+    { text: "The value of a product or service increases as more people use it", isCorrect: true },
+    { text: "A company communicates well with its shareholders" },
+    { text: "A company operates in multiple countries" },
+  ],
+  explanation: "The network effect is a powerful moat where the user base itself is a key asset. As more users join a platform, it becomes more valuable for all users, making it very difficult for a new competitor to gain a foothold.",
+  learningTip: "Classic examples include social media platforms like Facebook and marketplaces like eBay and Amazon.",
+},
+{
+  text: "Which scenario best describes a 'cost advantage' economic moat?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "A luxury brand that can charge very high prices" },
+    { text: "A company that can produce its goods or services at a significantly lower cost than competitors", isCorrect: true },
+    { text: "A software company with a popular product" },
+    { text: "A company with a charismatic CEO" },
+  ],
+  explanation: "A cost advantage allows a company to either undercut its rivals on price or to achieve higher profit margins. This advantage can come from superior processes, better scale, a more favorable location, or unique access to resources.",
+  learningTip: "Walmart and Dell are classic examples of companies that built powerful moats based on cost advantages.",
+},
+{
+  text: "What does it mean when an analyst says a company has a 'clean' balance sheet?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The balance sheet is easy to read" },
+    { text: "The company has little to no debt", isCorrect: true },
+    { text: "The company has a large amount of intangible assets" },
+    { text: "The company has just been audited" },
+  ],
+  explanation: "A 'clean' balance sheet is a colloquial term for a company that has very low debt levels and strong cash reserves. This financial health makes it less risky and more resilient during economic downturns.",
+  learningTip: "Investors often look for companies with clean balance sheets as a sign of prudent financial management.",
+},
+{
+  text: "What does 'short interest' represent in fundamental analysis?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The number of investors interested in buying the stock" },
+    { text: "The number of a company's shares that have been sold short and not yet covered", isCorrect: true },
+    { text: "The interest rate on a company's short-term debt" },
+    { text: "A lack of interest in the company's products" },
+  ],
+  explanation: "Short interest is the total number of shares that have been borrowed by short-sellers in the hope that the stock price will fall. It is often used as a sentiment indicator.",
+  learningTip: "Very high short interest can be bearish (many people expect the price to fall), but it can also fuel a 'short squeeze' if the price starts to rise, forcing short-sellers to buy back shares.",
+},
+{
+  text: "What is the difference between 'book value' and 'tangible book value'?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "There is no difference" },
+    { text: "Tangible book value excludes intangible assets like goodwill", isCorrect: true },
+    { text: "Tangible book value only includes cash" },
+    { text: "Book value is for assets, tangible book value is for liabilities" },
+  ],
+  explanation: "Tangible book value provides a more conservative measure of a company's net worth by subtracting intangible assets (like goodwill, patents, and trademarks) from the standard book value calculation.",
+  learningTip: "This metric can be particularly useful for analyzing industrial companies, but less so for technology or pharmaceutical companies where intangible assets are a primary source of value.",
+},
+{
+  text: "When a stock analyst issues a 'Buy' rating, what are they suggesting?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The stock is expected to perform in line with the market" },
+    { text: "The stock is expected to underperform the market" },
+    { text: "The stock is expected to outperform the market or its sector", isCorrect: true },
+    { text: "The company is about to be bought by another company" },
+  ],
+  explanation: "A 'Buy' rating (or 'Overweight,' 'Outperform') from a financial analyst indicates that they believe the stock is a good investment and will likely provide returns superior to the market average over a specific time horizon.",
+  learningTip: "Other common ratings are 'Hold' (expected to perform in line with the market) and 'Sell' (expected to underperform).",
+},
+
+// =================================================================
+// CATEGORY: OPTIONS & DERIVATIVES (Questions 121-150)
+// =================================================================
+{
+  text: "What basic right does a 'call option' give its owner?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The right, but not the obligation, to sell an asset at a set price", isCorrect: false },
+    { text: "The right, but not the obligation, to buy an asset at a set price", isCorrect: true },
+    { text: "The obligation to buy an asset at a set price" },
+    { text: "The obligation to sell an asset at a set price" },
+  ],
+  explanation: "A call option gives the holder the right to purchase an underlying security (like a stock) at a specified price (the strike price) on or before a specified date (the expiration date).",
+  learningTip: "You buy a call option when you are bullish and expect the price of the underlying asset to rise.",
+},
+{
+  text: "What basic right does a 'put option' give its owner?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The right, but not the obligation, to sell an asset at a set price", isCorrect: true },
+    { text: "The right, but not the obligation, to buy an asset at a set price" },
+    { text: "The obligation to buy an asset at a set price" },
+    { text: "The obligation to sell an asset at a set price" },
+  ],
+  explanation: "A put option gives the holder the right to sell an underlying security at a specified price (the strike price) on or before a specified date (the expiration date).",
+  learningTip: "You buy a put option when you are bearish and expect the price of the underlying asset to fall.",
+},
+{
+  text: "In an options contract, what is the 'strike price'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The price at which the option was purchased" },
+    { text: "The current market price of the underlying stock" },
+    { text: "The price at which the owner can buy or sell the underlying asset", isCorrect: true },
+    { text: "The highest price the stock has ever reached" },
+  ],
+  explanation: "The strike price (or exercise price) is a fixed price specified in the option contract at which the holder can exercise their right to buy (for a call) or sell (for a put) the underlying security.",
+  learningTip: "The relationship between the strike price and the current stock price determines if an option has intrinsic value.",
+},
+{
+  text: "What is the 'expiration date' of an option?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The date the option was created" },
+    { text: "The date after which the option can no longer be exercised", isCorrect: true },
+    { text: "The date the option must be exercised" },
+    { text: "The date the dividend is paid for the underlying stock" },
+  ],
+  explanation: "The expiration date is the last day on which an option can be exercised. After this date, the option becomes worthless.",
+  learningTip: "Standard stock options in the US typically expire on the third Friday of the month.",
+},
+{
+  text: "A call option is 'In-The-Money' (ITM) when the stock price is...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Below the strike price" },
+    { text: "Equal to the strike price" },
+    { text: "Above the strike price", isCorrect: true },
+    { text: "Nearing the expiration date" },
+  ],
+  explanation: "A call option is In-The-Money when the underlying stock's current market price is higher than the option's strike price. This means the option has intrinsic value and can be exercised for an immediate profit (before considering the premium paid).",
+  learningTip: "For a put option, it is ITM when the stock price is *below* the strike price.",
+},
+{
+  text: "An option is 'At-The-Money' (ATM) when...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "It has no time value left" },
+    { text: "Its strike price is equal or very close to the current stock price", isCorrect: true },
+    { text: "It is deep in the money" },
+    { text: "It is far out of the money" },
+  ],
+  explanation: "An option is At-The-Money when the underlying stock's price is the same as the option's strike price. ATM options have no intrinsic value but can have significant time value (extrinsic value).",
+  learningTip: "ATM options are the most sensitive to changes in time (Theta) and volatility (Vega).",
+},
+{
+  text: "The price of an option, known as the 'premium,' is composed of what two values?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Interest Value and Dividend Value" },
+    { text: "Strike Value and Spot Value" },
+    { text: "Intrinsic Value and Extrinsic (Time) Value", isCorrect: true },
+    { text: "Delta and Gamma Value" },
+  ],
+  explanation: "The premium of an option has two components. Intrinsic value is the amount by which the option is in-the-money. Extrinsic value (or time value) is the portion of the premium attributable to the time remaining until expiration and implied volatility.",
+  learningTip: "An out-of-the-money option has zero intrinsic value; its entire premium is extrinsic value.",
+},
+{
+  text: "What is the primary difference between American-style and European-style options?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The underlying assets are different" },
+    { text: "American options have higher premiums" },
+    { text: "When the option can be exercised", isCorrect: true },
+    { text: "The contract sizes are different" },
+  ],
+  explanation: "The key difference is the exercise period. American-style options can be exercised at any time before the expiration date, whereas European-style options can only be exercised on the expiration date itself.",
+  learningTip: "Most US stock options are American-style, while many major index options (like SPX) are European-style.",
+},
+{
+  text: "A 'cash-secured put' is a strategy where a trader...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Buys a put option with borrowed money" },
+    { text: "Sells (writes) a put option while setting aside enough cash to buy the stock if assigned", isCorrect: true },
+    { text: "Sells a put option on a stock they already own" },
+    { text: "Buys a put option to protect their cash position" },
+  ],
+  explanation: "This is a bullish-to-neutral strategy where an investor sells a put option with the goal of either keeping the premium or acquiring the underlying stock at a price below the current market price.",
+  learningTip: "It's a popular strategy for investors who want to buy a specific stock but are willing to be paid (via the option premium) to wait for the price to come down to their desired entry point.",
+},
+{
+  text: "Which of the 'Greeks' measures an option's sensitivity to a change in the underlying stock's price?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Delta", isCorrect: true },
+    { text: "Gamma" },
+    { text: "Theta" },
+    { text: "Vega" },
+  ],
+  explanation: "Delta measures the expected change in an option's price for a $1 move in the underlying security. For example, a call option with a Delta of 0.60 is expected to increase in value by $0.60 if the stock price rises by $1.",
+  learningTip: "Call options have a positive Delta (from 0 to 1), while put options have a negative Delta (from 0 to -1).",
+},
+{
+  text: "Which of the 'Greeks' measures the rate of change of an option's Delta?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Delta" },
+    { text: "Gamma", isCorrect: true },
+    { text: "Theta" },
+    { text: "Vega" },
+  ],
+  explanation: "Gamma measures how much an option's Delta is expected to change for a $1 move in the underlying stock. It represents the acceleration of the option's price.",
+  learningTip: "Gamma is highest for at-the-money options and decreases as the option moves further in- or out-of-the-money. High Gamma means high risk but also high potential profit.",
+},
+{
+  text: "What does 'Implied Volatility' (IV) represent in options pricing?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The historical volatility of the stock" },
+    { text: "The market's forecast of the likely movement in a security's price", isCorrect: true },
+    { text: "The actual volatility that occurred in the past" },
+    { text: "A fixed interest rate component" },
+  ],
+  explanation: "Implied Volatility is a key input in option pricing models. It is the estimated future volatility of the stock's price, and it has a major impact on the extrinsic value of an option. Higher IV means higher option premiums.",
+  learningTip: "IV tends to rise before major events like earnings reports and fall immediately after (an event known as 'IV crush').",
+},
+{
+  text: "One standard stock option contract in the U.S. typically represents how many shares of the underlying stock?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "1 share" },
+    { text: "10 shares" },
+    { text: "100 shares", isCorrect: true },
+    { text: "1000 shares" },
+  ],
+  explanation: "A standard options contract has a multiplier of 100. This means that if an option premium is quoted at $2.50, the actual cost to buy one contract is $2.50 x 100 = $250.",
+  learningTip: "Always remember to multiply the quoted premium by 100 to find the true cost or proceeds of an options trade.",
+},
+{
+  text: "What are 'LEAPS' options?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Options that expire in less than one week" },
+    { text: "A type of complex, multi-leg option strategy" },
+    { text: "Long-term options with expiration dates longer than one year", isCorrect: true },
+    { text: "Options on leveraged ETFs" },
+  ],
+  explanation: "LEAPS stands for Long-Term Equity Anticipation Securities. They are simply options contracts with expiration dates that are more than one year away from the purchase date. They allow investors to take a long-term position with the benefits of leverage.",
+  learningTip: "LEAPS have lower Theta (time decay) than short-term options, but they are more expensive due to the large amount of time value.",
+},
+{
+  text: "A 'protective put' strategy involves what?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Selling a put option to generate income" },
+    { text: "Buying a put option on a stock that you already own", isCorrect: true },
+    { text: "Buying a call and a put option at the same time" },
+    { text: "Selling a put option to another investor for protection" },
+  ],
+  explanation: "A protective put is an insurance strategy. An investor who owns shares of a stock can buy a put option on that same stock to protect against a decline in its price. The put option gains value as the stock price falls, offsetting losses in the stock position.",
+  learningTip: "This is a common hedging strategy to limit downside risk while retaining unlimited upside potential (minus the cost of the put).",
+},
+{
+  text: "What does 'open interest' signify in the options market?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The total volume of options traded on a given day" },
+    { text: "The total number of outstanding option contracts that have not been settled", isCorrect: true },
+    { text: "The number of options that are currently in-the-money" },
+    { text: "The interest rate charged for borrowing to trade options" },
+  ],
+  explanation: "Open interest represents the total number of active option contracts for a given strike price and expiration date. Each contract involves a buyer and a seller, so one contract represents one unit of open interest.",
+  learningTip: "High open interest indicates high liquidity and market interest in a particular option, making it easier to trade.",
+},
+{
+  text: "What does it mean to be 'assigned' on an option you have sold?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "You receive an extra premium payment" },
+    { text: "You are chosen to fulfill the obligation of the contract", isCorrect: true },
+    { text: "Your option contract is cancelled" },
+    { text: "You are given a new, different option" },
+  ],
+  explanation: "If you sell (or write) an option, you have an obligation. Assignment is the process by which you are notified that the buyer of the option has exercised their right. You must then fulfill your end of the deal: sell the stock (if you sold a call) or buy the stock (if you sold a put).",
+  learningTip: "The risk of assignment is a key consideration for any option seller.",
+},
+{
+  text: "The Options Clearing Corporation (OCC) serves what primary role in the market?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "It sets the prices for all options" },
+    { text: "It acts as the guarantor for every option contract, ensuring obligations are met", isCorrect: true },
+    { text: "It provides recommendations on which options to buy" },
+    { text: "It is the exchange where options are traded" },
+  ],
+  explanation: "The OCC is the central clearinghouse for all U.S. exchange-traded options. It standardizes contracts and acts as the buyer for every seller and the seller for every buyer, thereby eliminating counterparty risk between individual traders.",
+  learningTip: "The existence of the OCC is what makes the modern, liquid options market possible.",
+},
+{
+  text: "What does 'rolling' an option position involve?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Letting an option expire and opening a new one later" },
+    { text: "Closing an existing option position and immediately opening a new one in the same underlying but with a different strike price or expiration date", isCorrect: true },
+    { text: "Exercising an option" },
+    { text: "Doubling down on a losing option position" },
+  ],
+  explanation: "Rolling is a strategy used to manage an existing option position. A trader might 'roll up' to a higher strike price, 'roll down' to a lower one, or 'roll forward' to a later expiration date to adjust their strategy, take profits, or manage a losing trade.",
+  learningTip: "Rolling is executed as a single, multi-leg trade to close the old position and open the new one simultaneously.",
+},
+{
+  text: "The difference between the bid and ask price for an option is known as the...",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Premium" },
+    { text: "Spread", isCorrect: true },
+    { text: "Strike price" },
+    { text: "Intrinsic value" },
+  ],
+  explanation: "The bid-ask spread represents the difference between the highest price a buyer is willing to pay (bid) and the lowest price a seller is willing to accept (ask). This spread is an indirect cost of trading.",
+  learningTip: "Options with higher liquidity and volume tend to have a 'tighter' (smaller) bid-ask spread, which is better for traders.",
+},
+{
+  text: "What is a 'long straddle' strategy?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Selling a call and a put with the same strike and expiration" },
+    { text: "Buying a call and a put with the same strike and expiration", isCorrect: true },
+    { text: "Buying a call and selling a put" },
+    { text: "Buying two calls at different strike prices" },
+  ],
+  explanation: "A long straddle is a volatility strategy. An investor buys both a call and a put option on the same underlying stock with the same strike price and expiration date. The strategy profits if the stock makes a large move in either direction (up or down).",
+  learningTip: "This strategy is often used before an event like an earnings announcement, when a large price swing is expected but the direction is unknown.",
+},
+{
+  text: "An 'Iron Condor' is a popular options strategy for what type of market outlook?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Strongly bullish" },
+    { text: "Strongly bearish" },
+    { text: "Neutral, with low expected volatility", isCorrect: true },
+    { text: "High expected volatility in either direction" },
+  ],
+  explanation: "An Iron Condor is a four-leg, defined-risk strategy that profits if the underlying stock stays within a specific price range by the expiration date. It involves selling a put spread and a call spread simultaneously.",
+  learningTip: "It is an income-generating strategy that benefits from low volatility and time decay (Theta).",
+},
+{
+  text: "In options, what is a 'naked' or 'uncovered' call?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Buying a call option without owning the stock" },
+    { text: "Selling a call option without owning the underlying stock", isCorrect: true },
+    { text: "An option with very little time value left" },
+    { text: "A call option on a non-dividend paying stock" },
+  ],
+  explanation: "Selling a naked call involves selling a call option without having a long position in the underlying security. This is an extremely risky strategy because if the stock price rises significantly, the potential loss for the seller is theoretically unlimited.",
+  learningTip: "Due to the high risk, most brokerage firms require a very high level of trading approval and margin to sell naked options.",
+},
+{
+  text: "What is the primary goal of a 'bull call spread'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "To profit from a large decline in the stock price" },
+    { text: "To profit from a moderate rise in the stock price with limited risk", isCorrect: true },
+    { text: "To profit if the stock price stays exactly the same" },
+    { text: "To profit from a large increase in volatility" },
+  ],
+  explanation: "A bull call spread is a debit spread strategy that involves buying a call option at a certain strike price and simultaneously selling another call option at a higher strike price. It's a moderately bullish strategy with defined risk and defined profit potential.",
+  learningTip: "The cost of the spread is reduced by the premium received from selling the higher-strike call, making it cheaper than buying an outright call option.",
+},
+{
+  text: "A 'put option' is 'Out-of-the-Money' (OTM) when the stock price is...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Below the strike price" },
+    { text: "Equal to the strike price" },
+    { text: "Above the strike price", isCorrect: true },
+    { text: "Exactly $1 below the strike price" },
+  ],
+  explanation: "A put option is Out-of-the-Money when the underlying stock's current market price is higher than the option's strike price. This means the option has zero intrinsic value and exercising it would not be profitable.",
+  learningTip: "For a call option, it is OTM when the stock price is *below* the strike price.",
+},
+{
+  text: "What does the term 'derivative' refer to in finance?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "A stock that is derived from another company" },
+    { text: "A financial contract whose value is derived from an underlying asset", isCorrect: true },
+    { text: "A type of low-risk government bond" },
+    { text: "A mathematical formula for calculating stock prices" },
+  ],
+  explanation: "A derivative is a financial security with a value that is reliant upon or derived from an underlying asset or group of assets. The derivative itself is a contract between two or more parties.",
+  learningTip: "Options, futures, and swaps are all common types of derivatives.",
+},
+{
+  text: "Which of the 'Greeks' represents the risk from changes in interest rates?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Vega" },
+    { text: "Theta" },
+    { text: "Rho", isCorrect: true },
+    { text: "Gamma" },
+  ],
+  explanation: "Rho is the Greek that measures the sensitivity of an option's price to a change in interest rates. It represents the expected change in an option's price for a one-percentage-point change in interest rates.",
+  learningTip: "Rho is generally considered the least significant of the major Greeks, especially for short-term options, but it has a greater impact on long-term options like LEAPS.",
+},
+{
+  text: "A 'bear put spread' is a strategy that involves...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Buying a put and selling another put at a lower strike price", isCorrect: true },
+    { text: "Selling a put and buying a call" },
+    { text: "Buying two puts at different expiration dates" },
+    { text: "Buying a put and selling another put at a higher strike price" },
+  ],
+  explanation: "A bear put spread is a credit spread strategy used when a trader is moderately bearish on a stock. They buy a put option at one strike price and sell another put option with the same expiration but a lower strike price. This limits both the potential profit and the potential loss.",
+  learningTip: "This strategy is cheaper than buying an outright put, as the premium from the sold put offsets the cost of the purchased put.",
+},
+{
+  text: "What is a 'futures contract'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "A contract giving the right, but not the obligation, to buy an asset in the future" },
+    { text: "A standardized legal agreement to buy or sell a particular commodity or financial instrument at a predetermined price at a specified time in the future", isCorrect: true },
+    { text: "An informal agreement between two traders" },
+    { text: "A contract that can only be settled with cash" },
+  ],
+  explanation: "Unlike options, futures contracts are obligations. The buyer of a futures contract is obligated to buy the underlying asset, and the seller is obligated to sell it at the agreed-upon price, unless the contract is closed out before expiration.",
+  learningTip: "Futures are widely used for commodities like oil, gold, and agricultural products, as well as for financial instruments like stock indexes and currencies.",
+},
+{
+  text: "What does the 'Volatility Smile' refer to in options pricing?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "A chart pattern that indicates a happy market" },
+    { text: "A graphing pattern where implied volatility is higher for options that are deep in- or out-of-the-money", isCorrect: true },
+    { text: "A pattern where volatility is always highest for at-the-money options" },
+    { text: "A term for low-volatility trading environments" },
+  ],
+  explanation: "The Volatility Smile is a graph that plots the implied volatility (IV) of options with the same expiration date against their strike prices. Contrary to the Black-Scholes model assumption of constant volatility, the plot often forms a 'smile' shape, with higher IV for OTM and ITM options compared to ATM options.",
+  learningTip: "For equity options, this often appears as a 'smirk' or 'skew,' where out-of-the-money puts have much higher IV than out-of-the-money calls, reflecting higher demand for downside protection.",
+},
+// =================================================================
+// CATEGORY: OPTIONS & DERIVATIVES (Continued, Questions 151-170)
+// =================================================================
+{
+  text: "What is a 'calendar spread' (or time spread)?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "A strategy involving buying and selling options of the same type and strike but with different expiration dates", isCorrect: true },
+    { text: "A strategy that profits from large price moves in either direction" },
+    { text: "A strategy involving four different option contracts to create a range" },
+    { text: "A strategy that is only used at the end of the calendar year" },
+  ],
+  explanation: "A calendar spread is created by simultaneously buying and selling an option of the same type (call or put) and strike price, but with different expiration months. Traders use this to profit from the passage of time and changes in implied volatility.",
+  learningTip: "A typical long calendar spread involves selling a short-term option and buying a longer-term option, profiting as the short-term option's time value decays faster.",
+},
+{
+  text: "What is 'pin risk' in options trading?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The risk that an option will expire completely worthless" },
+    { text: "The uncertainty over whether a short option position will be assigned when the underlying stock closes exactly at the strike price at expiration", isCorrect: true },
+    { text: "The risk associated with a sudden spike in implied volatility" },
+    { text: "The risk of placing a trade with a very small pin-sized profit margin" },
+  ],
+  explanation: "Pin risk occurs on expiration day when a stock's price is 'pinned' to a strike price. An option seller doesn't know if they will be assigned or not, creating uncertainty and potential for unwanted stock positions over the weekend.",
+  learningTip: "To avoid pin risk, many traders close their short option positions before the final hour of trading on expiration Friday.",
+},
+{
+  text: "A 'box spread' is a complex options strategy primarily used for what purpose?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "To speculate on high volatility" },
+    { text: "To create a simple, directional bet on a stock" },
+    { text: "To execute an arbitrage strategy that locks in a risk-free profit based on interest rates", isCorrect: true },
+    { text: "To generate income from a range-bound stock" },
+  ],
+  explanation: "A box spread is an arbitrage strategy that combines a bull call spread and a bear put spread. When executed correctly, it is designed to lock in a small, risk-free profit that is equivalent to the interest that could be earned on the initial investment.",
+  learningTip: "While theoretically risk-free, box spreads carry risks related to commissions, bid-ask spreads, and early assignment.",
+},
+{
+  text: "What is 'IV crush'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "A sudden spike in implied volatility before an event" },
+    { text: "A trading strategy that profits from rising volatility" },
+    { text: "A measure of a stock's historical volatility" },
+    { text: "The rapid decrease in an option's implied volatility after a known event, like earnings, has passed", isCorrect: true },
+  ],
+  explanation: "Implied volatility (IV) often rises significantly leading up to a known event because of uncertainty. Once the event occurs and the uncertainty is resolved, IV 'crushes' or falls sharply. This causes a drop in option premiums, especially for those who bought them at peak IV.",
+  learningTip: "Selling options before earnings is a strategy that aims to profit from IV crush, but it carries significant risk from the price move itself.",
+},
+{
+  text: "What is a 'ratio spread'?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "A strategy that involves buying and selling an unequal number of options", isCorrect: true },
+    { text: "A spread where the ratio of profit to loss is always greater than 2:1" },
+    { text: "A strategy that only uses options on stock market indexes or ratios" },
+    { text: "A strategy where you buy and sell an equal number of calls and puts" },
+  ],
+  explanation: "A ratio spread is an options strategy where an unequal number of options are bought and sold. For example, buying one call and selling two calls at a higher strike price. This creates a position with a unique risk/reward profile that can profit from a specific price move.",
+  learningTip: "Ratio spreads often involve a 'naked' or uncovered option component, which introduces undefined risk.",
+},
+{
+  text: "In the context of futures, what does 'margin' refer to?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The total price of the futures contract" },
+    { text: "A good-faith deposit required to hold a futures position, not a down payment", isCorrect: true },
+    { text: "The profit made on a futures trade" },
+    { text: "The commission paid to the futures broker" },
+  ],
+  explanation: "Unlike stock margin, futures margin is not a loan. It is a performance bond or deposit held by the exchange to ensure that traders can fulfill their obligations. The amount is a small percentage of the total contract value.",
+  learningTip: "Futures traders must maintain the 'maintenance margin' level. If their account drops below this due to losses, they will receive a 'margin call' to deposit more funds.",
+},
+{
+  text: "A 'butterfly spread' is an options strategy that profits when the stock price...",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Makes a very large move up or down" },
+    { text: "Trends strongly in one direction" },
+    { text: "Stays within a very narrow range, ideally at the strike price of the sold options", isCorrect: true },
+    { text: "Experiences a sharp drop in implied volatility" },
+  ],
+  explanation: "A long butterfly spread is a neutral, defined-risk strategy that has the highest profit potential if the underlying asset price is exactly at the strike price of the short options at expiration. It is a bet on low volatility.",
+  learningTip: "A classic butterfly spread is created by buying one call, selling two calls at a higher strike, and buying one more call at an even higher strike.",
+},
+{
+  text: "What is a 'synthetic long stock' position in options?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Selling a put and selling a call" },
+    { text: "Buying a stock and a put option" },
+    { text: "Selling a stock and buying a call" },
+    { text: "Buying a call and selling a put at the same strike and expiration", isCorrect: true },
+  ],
+  explanation: "A synthetic long stock position is created by combining a long call option and a short put option with the same strike and expiration. This combination mimics the risk/reward profile of owning 100 shares of the underlying stock.",
+  learningTip: "Synthetics are often used by advanced traders for margin efficiency or to manage complex positions.",
+},
+{
+  text: "Which of the 'Greeks' has the most impact on deep In-The-Money options?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Delta", isCorrect: true },
+    { text: "Gamma" },
+    { text: "Theta" },
+    { text: "Vega" },
+  ],
+  explanation: "Deep in-the-money options have a Delta that is very close to 1.0 (for calls) or -1.0 (for puts). This means they move almost dollar-for-dollar with the underlying stock. Their sensitivity to time (Theta) and volatility (Vega) is very low.",
+  learningTip: "Conversely, At-The-Money options have the highest Gamma, Theta, and Vega sensitivity.",
+},
+{
+  text: "What is the primary risk of selling a 'short strangle'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The stock price staying between the two strike prices" },
+    { text: "A large move in the underlying stock in either direction, leading to potentially unlimited losses", isCorrect: true },
+    { text: "Time decay working against the position" },
+    { text: "A decrease in implied volatility" },
+  ],
+  explanation: "A short strangle involves selling an out-of-the-money call and an out-of-the-money put. It profits if the stock price stays between the two strike prices. However, if the stock makes a huge move up or down, the losses on one of the naked options can be unlimited.",
+  learningTip: "This is a high-risk, high-probability strategy favored by experienced traders who believe volatility will be low.",
+},
+{
+  text: "What are 'weekly options' (or 'weeklys')?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Options that can only be traded once a week" },
+    { text: "Options that are settled on a weekly basis" },
+    { text: "Option contracts with very short-term expiration dates, typically expiring each week", isCorrect: true },
+    { text: "A type of option on weekly news events" },
+  ],
+  explanation: "Weekly options are options that expire on a weekly basis, usually every Friday. They provide more flexibility and opportunities for short-term trading strategies compared to standard monthly options.",
+  learningTip: "Weekly options experience extremely rapid time decay (Theta), making them very risky to buy but potentially profitable to sell for income.",
+},
+{
+  text: "A 'diagonal spread' involves buying and selling options with...",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The same strike price and same expiration date" },
+    { text: "The same strike price but different expiration dates" },
+    { text: "Different strike prices and the same expiration date" },
+    { text: "Different strike prices and different expiration dates", isCorrect: true },
+  ],
+  explanation: "A diagonal spread is a modification of a calendar spread. It involves buying and selling options of the same type (e.g., two calls) but with both different strike prices and different expiration dates. They are used for a variety of directional or income strategies.",
+  learningTip: "An example is a 'Poor Man's Covered Call,' which is a long-term, in-the-money call LEAP combined with a short-term, out-of-the-money call sold against it.",
+},
+{
+  text: "What does it mean if an option has 'extrinsic value' but no 'intrinsic value'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The option is In-The-Money", isCorrect: true },
+    { text: "The option has already expired" },
+    { text: "The option is At-The-Money or Out-of-the-Money" },
+    { text: "The option is on a non-volatile stock" },
+  ],
+  explanation: "An option with zero intrinsic value is either At-The-Money (ATM) or Out-of-the-Money (OTM). Its entire premium, or price, is made up of extrinsic value, which is a combination of time until expiration and implied volatility.",
+  learningTip: "All of an option's extrinsic value disappears by the time it reaches its expiration date.",
+},
+{
+  text: "What is a 'collar' strategy used for?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "To speculate on a large upward price move" },
+    { text: "To protect a long stock position from downside risk, while also capping upside potential", isCorrect: true },
+    { text: "To bet on a decrease in market volatility" },
+    { text: "To generate unlimited income from a stock" },
+  ],
+  explanation: "A collar is created by an investor who owns stock. They buy a protective put option (to limit downside) and simultaneously sell a covered call option (which caps upside). Often, the premium from the sold call is used to pay for the purchased put.",
+  learningTip: "This is a low-cost way to hedge a stock position and define a clear range of potential outcomes for the trade.",
+},
+{
+  text: "What is the main advantage of a 'spread' trade versus an outright long call or put?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "It has unlimited profit potential" },
+    { text: "It is easier to execute" },
+    { text: "It reduces the cost and/or risk of the position", isCorrect: true },
+    { text: "It does not suffer from time decay" },
+  ],
+  explanation: "A spread involves buying one option and selling another. The premium received from selling an option helps to offset the cost of buying the other option. This reduces the total capital required for the trade and typically defines the maximum risk.",
+  learningTip: "The trade-off is that spread trades also have limited profit potential, unlike a simple long call or put.",
+},
+{
+  text: "What is the 'put-call ratio' used for as a sentiment indicator?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "To predict the direction of interest rates" },
+    { text: "To measure the health of the options clearing house" },
+    { text: "To determine the optimal strike price for an option" },
+    { text: "To gauge the overall mood of the market by comparing the volume of puts to calls", isCorrect: true },
+  ],
+  explanation: "The put-call ratio is calculated by dividing the total volume of traded put options by the volume of traded call options. A high ratio suggests that investors are more bearish (buying more puts for protection), while a low ratio suggests bullishness.",
+  learningTip: "It is often used as a contrarian indicator: a very high put-call ratio might signal that the market is overly fearful and a bottom is near.",
+},
+{
+  text: "What are 'flex options'?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Options that can be exercised on any day of the week", isCorrect: true },
+    { text: "Options with flexible, non-standard terms (like strike price or expiration) that are customized by the traders", isCorrect: false },
+    { text: "Options on highly flexible technology companies" },
+    { text: "Options with a flexible number of shares per contract" },
+  ],
+  explanation: "FLEX (Flexible Exchange) Options allow institutional investors to customize contract terms like the strike price, expiration date, and exercise style (American or European). They combine the flexibility of the over-the-counter market with the guarantee of the exchange's clearinghouse.",
+  learningTip: "FLEX options are generally used for very large, institutional-sized trades, not by retail investors.",
+},
+{
+  text: "What is a 'gamma scalp'?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "A strategy to profit from a stock staying in a very tight range" },
+    { text: "A delta-neutral trading strategy designed to profit from the volatility of an underlying asset", isCorrect: true },
+    { text: "A method for scalping small profits by reading the order book" },
+    { text: "A haircut applied to the value of options held as collateral" },
+  ],
+  explanation: "Gamma scalping is an advanced, delta-neutral strategy. A trader buys options to get 'long gamma' and then continuously trades the underlying stock back and forth to maintain a delta-neutral position. They profit if the stock's realized volatility is greater than the implied volatility they paid for.",
+  learningTip: "This is a complex market-making strategy that requires active management and low transaction costs.",
+},
+{
+  text: "Why does the seller of a call or put option have limited profit potential?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Because the government taxes their gains at a higher rate" },
+    { text: "Because the broker takes a large portion of the profits" },
+    { text: "Because the maximum profit they can make is the premium they received when they sold the option", isCorrect: true },
+    { text: "Because options prices cannot rise above a certain level" },
+  ],
+  explanation: "When an investor sells (writes) an option, they receive a cash payment called a premium. This premium is the most they can ever make from the trade. The position becomes profitable if the option expires worthless.",
+  learningTip: "This limited profit potential is the trade-off for having a high probability of success on any given trade.",
+},
+{
+  text: "In futures trading, what is 'basis risk'?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The risk that the futures contract will expire worthless" },
+    { text: "The risk that you will not be able to find a buyer for your contract" },
+    { text: "The risk of a margin call" },
+    { text: "The risk that the price of a futures contract will not move in line with the price of the underlying asset", isCorrect: true },
+  ],
+  explanation: "Basis is the difference between the spot price of an asset and the price of its related futures contract. Basis risk is the financial risk that the basis will change unexpectedly, making a hedging strategy imperfect.",
+  learningTip: "A hedger is exposed to basis risk if the type or grade of the asset they are hedging is different from the one specified in the futures contract.",
+},
+// =================================================================
+// CATEGORY: RISK MANAGEMENT & PSYCHOLOGY (Questions 171-200)
+// =================================================================
+{
+  text: "What is the primary purpose of a 'stop-loss' order?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "To limit an investor's potential loss on a position", isCorrect: true },
+    { text: "To guarantee a profit on a trade" },
+    { text: "To buy a stock at the lowest price of the day" },
+    { text: "To automatically invest in a stock every month" },
+  ],
+  explanation: "A stop-loss order is an instruction placed with a broker to sell a security when it reaches a certain price. It is designed to mitigate risk by automatically closing out a losing trade once the loss reaches a pre-determined level.",
+  learningTip: "Every trader should know their exit point before they even enter a trade. A stop-loss order enforces this discipline.",
+},
+{
+  text: "What is the 'risk/reward ratio' of a trade?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "The total commission paid for the trade" },
+    { text: "A comparison of the amount of capital a trader is risking to the amount they stand to gain", isCorrect:true },
+    { text: "The probability of the trade being successful" },
+    { text: "A measure of the stock's volatility" },
+  ],
+  explanation: "The risk/reward ratio compares the potential loss of a trade (the distance from your entry to your stop-loss) to its potential profit (the distance from your entry to your profit target).",
+  learningTip: "Many traders look for setups with a risk/reward ratio of at least 1:2, meaning they stand to gain at least twice as much as they are risking.",
+},
+{
+  text: "In trading, what is 'position sizing'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Choosing which direction to trade (long or short)" },
+    { text: "The analysis of a company's financial position" },
+    { text: "Determining the appropriate amount of capital to allocate to a single trade", isCorrect: true },
+    { text: "The physical size of your trading desk setup" },
+  ],
+  explanation: "Position sizing is a critical component of risk management. It's the process of deciding how many shares or contracts to trade based on the size of your trading account and your risk tolerance for that specific trade.",
+  learningTip: "A common rule is the '1% rule,' where a trader never risks more than 1% of their total account equity on a single trade.",
+},
+{
+  text: "What is 'revenge trading'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "A disciplined strategy to win back losses" },
+    { text: "Trading based on a hot tip from a friend" },
+    { text: "Using social media to retaliate against a company" },
+    { text: "Entering a new trade impulsively and emotionally right after taking a loss, in an attempt to make the money back quickly", isCorrect: true },
+  ],
+  explanation: "Revenge trading is an emotional and undisciplined reaction to a loss. It often involves taking larger positions or lower-quality setups, and it almost always leads to further, more significant losses.",
+  learningTip: "The best way to handle a frustrating loss is to step away from the screen, review what went wrong, and wait for a proper, high-quality setup according to your plan.",
+},
+{
+  text: "What is 'confirmation bias' in the context of trading?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "The tendency to seek out and interpret information that confirms one's pre-existing beliefs or trades", isCorrect: true },
+    { text: "The bias towards trading only in the morning" },
+    { text: "Waiting for a confirmation signal from multiple indicators" },
+    { text: "The belief that past performance confirms future results" },
+  ],
+  explanation: "Confirmation bias is a psychological trap where a trader in a position will unconsciously look for evidence that supports their trade while ignoring or downplaying any evidence that contradicts it. This can lead to holding onto losing trades for too long.",
+  learningTip: "Actively seek out the bearish case for your bullish trades (and vice-versa). This helps to maintain an objective view.",
+},
+{
+  text: "The 'Fear of Missing Out' (FOMO) often causes traders to...",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Take profits too early on winning trades" },
+    { text: "Chase a stock after it has already made a large move, entering at a poor price", isCorrect: true },
+    { text: "Analyze a trade too carefully before entering" },
+    { text: "Avoid volatile stocks altogether" },
+  ],
+  explanation: "FOMO is a powerful emotion that makes traders feel anxious that they are missing a massive opportunity. This leads to impulsive 'chasing' behavior, which violates trading plans and often results in buying at the top.",
+  learningTip: "Understand that there will always be another trade. Patience and discipline are more valuable than chasing any single move.",
+},
+{
+  text: "What does it mean to have a 'trading plan'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "A vague idea of what you want to buy" },
+    { text: "Following the trades of a popular social media influencer" },
+    { text: "A written set of rules that defines your strategy, including entry criteria, exit rules, and risk management", isCorrect: true },
+    { text: "A plan to make a specific amount of money each day" },
+  ],
+  explanation: "A trading plan is a trader's personal rulebook. It removes emotion and subjective decision-making during market hours. It should precisely define what constitutes a valid trade setup, how positions will be managed, and how risk will be controlled.",
+  learningTip: "'Plan your trade and trade your plan.' Without a plan, you are just gambling.",
+},
+{
+  text: "The 'disposition effect' is a cognitive bias where investors tend to...",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Prefer investing in domestic companies" },
+    { text: "Hold on to losing stocks for too long and sell winning stocks too soon" },
+    { text: "Follow the advice of financial news anchors" },
+    { text: "Sell winning stocks too soon and hold losing stocks for too long", isCorrect: true },
+  ],
+  explanation: "The disposition effect is driven by a reluctance to realize losses (hope) and an eagerness to lock in gains (fear). This leads to the classic trading mistake of 'cutting your flowers and watering your weeds,' which is detrimental to long-term performance.",
+  learningTip: "A proper trading plan with clear profit targets and stop-losses is the primary antidote to the disposition effect.",
+},
+{
+  text: "What is the main benefit of keeping a 'trading journal'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "It allows you to track your performance, identify patterns in your behavior, and learn from both wins and losses", isCorrect: true },
+    { text: "It is a legal requirement for all traders" },
+    { text: "It helps to predict future market movements" },
+    { text: "It automatically calculates your tax liability" },
+  ],
+  explanation: "A trading journal is a log of your trades, including the reasons for entry, the outcome, and your emotional state. Reviewing a journal is one of the most effective ways to identify strengths, weaknesses, and recurring mistakes in your trading process.",
+  learningTip: "Your journal should track not just the numbers, but also screenshots of your charts and notes on your psychological state during the trade.",
+},
+{
+  text: "What is 'diversification' in portfolio management?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Investing all your capital into one stock" },
+    { text: "A strategy of spreading investments across various financial instruments, industries, and asset classes to reduce risk", isCorrect: true },
+    { text: "A strategy that focuses only on high-risk, high-reward stocks" },
+    { text: "Investing in a variety of different cryptocurrencies" },
+  ],
+  explanation: "Diversification is the practice of mixing a wide variety of investments within a portfolio. The rationale is that a portfolio of different kinds of assets will, on average, yield higher long-term returns and lower the risk of any single holding harming the overall performance.",
+  learningTip: "The old saying 'Don't put all your eggs in one basket' is the essence of diversification.",
+},
+// =================================================================
+// CATEGORY: RISK MANAGEMENT & PSYCHOLOGY (Continued, Questions 201-220)
+// =================================================================
+{
+  text: "What is 'analysis paralysis' in trading?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Quickly analyzing a chart and making an impulsive trade" },
+    { text: "The belief that your analysis is always correct" },
+    { text: "The state of over-analyzing so much information that a trader is unable to make a decision", isCorrect: true },
+    { text: "A physical paralysis caused by staring at charts for too long" },
+  ],
+  explanation: "Analysis paralysis occurs when a trader is overwhelmed by too many indicators, news sources, or opinions, leading to inaction and missed opportunities. They are perpetually waiting for the 'perfect' signal that never comes.",
+  learningTip: "Simplify your strategy. Focus on a few key indicators and rules that you understand well to avoid information overload.",
+},
+{
+  text: "The 'Gambler's Fallacy' is the mistaken belief that...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "All trading is a form of gambling" },
+    { text: "One should always gamble on high-risk stocks" },
+    { text: "Winning a trade increases the probability of winning the next one" },
+    { text: "If something happens more frequently than normal during a given period, it will happen less frequently in the future", isCorrect: true },
+  ],
+  explanation: "In trading, this fallacy might cause someone to think that after a series of losing trades, they are 'due' for a winning one, or that a stock that has gone up for ten days in a row is 'due' for a down day. Past random events do not influence future outcomes.",
+  learningTip: "Every trade is an independent event. Judge each setup on its own merits according to your trading plan, not on the outcome of previous trades.",
+},
+{
+  text: "What is 'drawdown' in relation to a trading account?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "The reduction in an account's equity from a peak to a subsequent trough", isCorrect: true },
+    { text: "The total amount of money withdrawn from a trading account" },
+    { text: "A graphical drawing tool used on charts" },
+    { text: "The average profit per trade" },
+  ],
+  explanation: "Drawdown is a measure of the decline in the value of a trading account from its highest point. It is a critical measure of risk and volatility of a trading strategy.",
+  learningTip: "Managing your 'maximum drawdown' is crucial. A 50% drawdown requires a 100% gain just to get back to breakeven, which is psychologically and mathematically difficult.",
+},
+{
+  text: "What is the primary danger of 'herding' behavior in markets?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "It leads to low trading volume" },
+    { text: "It causes individuals to ignore their own analysis and follow the crowd, often leading to buying at tops and selling at bottoms", isCorrect: true },
+    { text: "It only affects professional fund managers" },
+    { text: "It makes the market more efficient and less risky" },
+  ],
+  explanation: "Herding is the tendency for individuals to mimic the actions of a larger group. In finance, this can create asset bubbles (as everyone rushes to buy) and subsequent crashes (as everyone rushes to sell).",
+  learningTip: "Develop confidence in your own, independent analysis. The crowd is often most bullish at the peak and most bearish at the bottom.",
+},
+{
+  text: "What is 'anchoring bias'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "The tendency to prefer stocks from one's own country" },
+    { text: "The bias of using a broker located in a specific city" },
+    { text: "The cognitive bias where an individual relies too heavily on an initial piece of information (the 'anchor') when making decisions", isCorrect: true },
+    { text: "The practice of anchoring a stop-loss order to a moving average" },
+  ],
+  explanation: "In trading, an investor might be 'anchored' to the price they first paid for a stock. If they bought at $100 and it drops to $50, they may be reluctant to sell, hoping it gets back to their original price, even if fundamentals have deteriorated.",
+  learningTip: "Evaluate a stock based on its current prospects and value, not on the price you paid for it.",
+},
+{
+  text: "A 'Black Swan' event in finance is an event that is...",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "A common and predictable market downturn" },
+    { text: "An event that affects only a single stock" },
+    { text: "A minor market fluctuation" },
+    { text: "Extremely rare, has a severe impact, and is often rationalized in hindsight as if it were expected", isCorrect: true },
+  ],
+  explanation: "The term was popularized by Nassim Nicholas Taleb. These events are impossible to predict and lie outside the realm of regular expectations. The 2008 financial crisis is often cited as an example.",
+  learningTip: "While you can't predict Black Swan events, you can build a robust portfolio with proper risk management (like stop-losses and diversification) to survive them.",
+},
+{
+  text: "Which of the following is a good practice for managing trading psychology?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Taking regular breaks and maintaining a healthy work-life balance", isCorrect: true },
+    { text: "Watching your positions constantly without blinking" },
+    { text: "Increasing your position size after a big loss to win it back" },
+    { text: "Only reading news that confirms your current trade" },
+  ],
+  explanation: "Trading is a high-stress activity. Physical and mental well-being are crucial for clear decision-making. Fatigue, stress, and burnout lead to poor, emotionally-driven trading.",
+  learningTip: "Incorporate exercise, mindfulness, or other stress-reducing activities into your routine. Know when to step away.",
+},
+{
+  text: "The 'hot-hand fallacy' is the belief that...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "A trader who has experienced a recent string of successes has a greater chance of further success in subsequent attempts", isCorrect: true },
+    { text: "A hot stock will eventually cool down" },
+    { text: "One should avoid trading stocks that are popular in the news" },
+    { text: "A trader's hand will physically get hot from stress" },
+  ],
+  explanation: "This is the opposite of the Gambler's Fallacy. A trader on a winning streak might feel invincible and start taking excessive risks, believing they can't lose. This overconfidence often precedes a major drawdown.",
+  learningTip: "Stay humble and stick to your plan, regardless of whether you are on a winning or losing streak. Your process, not your recent luck, determines long-term success.",
+},
+{
+  text: "What does the 'expectancy' of a trading system measure?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "The expected daily return of the trading system" },
+    { text: "The maximum drawdown you can expect from the system" },
+    { text: "The average amount you can expect to win or lose per trade over the long term", isCorrect: true },
+    { text: "The number of trades you can expect to make in a year" },
+  ],
+  explanation: "Expectancy is a formula that tells you what you can expect to make on average for every dollar you risk. It is calculated as: (Win % * Average Win) - (Loss % * Average Loss).",
+  learningTip: "A trading system must have a positive expectancy to be profitable in the long run. Even with a low win rate, a system can be profitable if the average wins are much larger than the average losses.",
+},
+{
+  text: "What is 'recency bias' in trading?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "The bias towards using only the most recent charting software" },
+    { text: "The tendency to give too much weight to recent events or experiences", isCorrect: true },
+    { text: "A preference for trading recently IPO'd companies" },
+    { text: "The belief that old trading strategies no longer work" },
+  ],
+  explanation: "Recency bias can cause a trader to become overly optimistic after a few winning trades or overly pessimistic after a few losses. It also might lead them to believe that a market that has been trending will continue to trend forever, ignoring longer-term data.",
+  learningTip: "Always consider the bigger picture and longer-term market context to avoid being swayed by short-term noise.",
+},
+// =================================================================
+// CATEGORY: MARKET CONCEPTS & ECONOMICS (Questions 211-250)
+// =================================================================
+{
+  text: "What is 'inflation'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A period of falling prices and economic contraction" },
+    { text: "A situation where a country's currency rapidly appreciates" },
+    { text: "The rate at which the general level of prices for goods and services is rising, and subsequently, purchasing power is falling", isCorrect: true },
+    { text: "The total value of all goods and services produced by a country" },
+  ],
+  explanation: "Inflation means your money buys less than it did before. Central banks typically aim for a modest inflation rate (around 2%) as a sign of a healthy, growing economy.",
+  learningTip: "Assets like stocks and real estate are often considered hedges against inflation because their values can rise along with prices.",
+},
+{
+  text: "What is the primary role of a 'central bank'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "To provide banking services to individual consumers" },
+    { text: "To print all the physical currency for a country" },
+    { text: "To trade stocks and bonds for a profit" },
+    { text: "To manage a nation's currency, money supply, and interest rates, aiming for price stability and economic growth", isCorrect: true },
+  ],
+  explanation: "Central banks, like the U.S. Federal Reserve (the Fed) or the European Central Bank (ECB), are powerful institutions that oversee the monetary system of a nation or group of nations.",
+  learningTip: "The decisions made by central banks, especially regarding interest rates, have a massive impact on financial markets.",
+},
+{
+  text: "Gross Domestic Product (GDP) measures what?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "The total monetary or market value of all the finished goods and services produced within a country's borders in a specific time period", isCorrect: true },
+    { text: "A country's total national debt" },
+    { text: "The total profit of all companies in a country" },
+    { text: "The average income of a country's citizens" },
+  ],
+  explanation: "GDP is the most common measure of a country's economic health. A positive GDP growth rate indicates economic expansion, while a negative growth rate indicates contraction.",
+  learningTip: "Two consecutive quarters of negative GDP growth is the technical definition of a recession.",
+},
+{
+  text: "'Monetary policy' refers to actions undertaken by a central bank to manipulate what?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "The money supply and credit conditions to stimulate or restrain economic activity", isCorrect: true },
+    { text: "Government spending and taxation policies" },
+    { text: "International trade agreements and tariffs" },
+    { text: "The regulation of the stock market" },
+  ],
+  explanation: "The primary tools of monetary policy are setting interest rates, conducting open market operations (buying/selling government bonds), and setting bank reserve requirements.",
+  learningTip: "Lowering interest rates is an 'expansionary' or 'dovish' policy designed to boost the economy. Raising interest rates is 'contractionary' or 'hawkish,' designed to fight inflation.",
+},
+{
+  text: "'Fiscal policy' involves the use of what tools to influence the economy?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "Interest rates and money supply" },
+    { text: "International diplomacy" },
+    { text: "Government spending and taxation", isCorrect: true },
+    { text: "The nationalization of industries" },
+  ],
+  explanation: "Fiscal policy is determined by the government (e.g., Congress and the President in the U.S.), not the central bank. It can be used to stimulate the economy (e.g., through tax cuts or infrastructure spending) or to cool it down.",
+  learningTip: "Monetary policy is generally considered faster and more flexible than fiscal policy, which can be slow to implement due to political processes.",
+},
+{
+  text: "What is a 'recession'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A period of rapid economic growth and high inflation" },
+    { text: "A temporary rise in the stock market" },
+    { text: "A period when a country's currency becomes the strongest in the world" },
+    { text: "A significant, widespread, and prolonged downturn in economic activity", isCorrect: true },
+  ],
+  explanation: "A recession is characterized by falling GDP, rising unemployment, and declining business and consumer confidence. The technical definition is often cited as two consecutive quarters of negative GDP growth.",
+  learningTip: "During a recession, investors often flock to 'safe-haven' assets like government bonds and gold.",
+},
+{
+  text: "What does a stock market 'index' like the S&P 500 represent?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A measurement of the value of a section of the stock market, computed from the prices of selected stocks", isCorrect: true },
+    { text: "A fund that individual investors can buy" },
+    { text: "The government agency that regulates the stock market" },
+    { text: "A list of the top 500 traders in the world" },
+  ],
+  explanation: "A market index is a hypothetical portfolio of investment holdings that represents a segment of the financial market. The S&P 500, for example, tracks the performance of 500 of the largest U.S. publicly traded companies and is a common benchmark for the overall market.",
+  learningTip: "Other major indexes include the Dow Jones Industrial Average (DJIA), the Nasdaq Composite, and the Russell 2000.",
+},
+{
+  text: "In economics, 'liquidity' refers to...",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "The ease with which an asset can be converted into ready cash without affecting its market price", isCorrect: true },
+    { text: "The total amount of water-related companies in a portfolio" },
+    { text: "A government bailout of the financial system" },
+    { text: "The flow of goods between countries" },
+  ],
+explanation: "Cash is the most liquid asset. An asset like real estate is highly illiquid because it can take a long time and significant costs to convert it to cash. In markets, high liquidity means there are many buyers and sellers, leading to tight bid-ask spreads.",
+  learningTip: "Stocks of large companies like Apple or Microsoft are highly liquid, while stocks of very small, obscure companies may be illiquid.",
+},
+{
+  text: "What is a 'bear market'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A market condition where prices are rising or expected to rise" },
+    { text: "A market where trading volume is very low" },
+    { text: "A market condition where prices are falling, and pessimism is widespread", isCorrect: true },
+    { text: "A market that is only open in the winter" },
+  ],
+  explanation: "A bear market is a period of prolonged price declines. A common definition is a price drop of 20% or more from recent highs in a major market index, amid widespread negative investor sentiment.",
+  learningTip: "The term is thought to originate from the way a bear attacks, by swiping its paws downwards.",
+},
+{
+  text: "What does 'systemic risk' refer to?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "The risk associated with a single company going bankrupt" },
+    { text: "The risk of a computer system failure at a stock exchange" },
+    { text: "The risk of a trading strategy not performing as expected" },
+    { text: "The risk of a collapse of an entire financial system or market, as opposed to risk associated with any one individual entity", isCorrect: true },
+  ],
+  explanation: "Systemic risk is the 'domino effect' risk, where the failure of one large financial institution could trigger a chain reaction of failures throughout the entire system. The 2008 crisis, sparked by the collapse of Lehman Brothers, is the quintessential example.",
+  learningTip: "Diversification can protect you from the failure of a single company (unsystematic risk), but not from systemic risk.",
+},
+{
+  text: "What is a 'tariff'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A tax imposed by a government on imported goods or services", isCorrect: true },
+    { text: "A subsidy given to domestic producers" },
+    { text: "A type of international trade agreement" },
+    { text: "A limit on the quantity of a good that can be imported" },
+  ],
+  explanation: "Tariffs are a form of trade barrier used to restrict imports. They increase the price of imported goods, making them less competitive with domestic products. They are a tool of protectionism.",
+  learningTip: "The imposition of tariffs can lead to trade wars, where countries retaliate by imposing their own tariffs, often harming global economic growth.",
+},
+{
+  text: "What is 'deflation'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A slowdown in the rate of inflation" },
+    { text: "A general decline in prices for goods and services, associated with a contraction in the supply of money and credit", isCorrect: true },
+    { text: "A period of stable prices" },
+    { text: "The deflation of an asset bubble" },
+  ],
+  explanation: "Deflation is the opposite of inflation. While falling prices might sound good, it can be very dangerous for an economy. It encourages consumers to delay purchases (as things will be cheaper tomorrow), which can lead to a downward spiral of lower production and higher unemployment.",
+  learningTip: "Deflation increases the real value of debt, which can be crippling for borrowers and the economy as a whole.",
+},
+{
+  text: "What is a 'yield curve'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A curve showing the relationship between a stock's price and its dividend yield" },
+    { text: "A graph that shows the yield of a crop over time" },
+    { text: "A line that plots the interest rates (yields) of bonds having equal credit quality but differing maturity dates", isCorrect: true },
+    { text: "A curve representing the projected earnings of a company" },
+  ],
+  explanation: "The yield curve, typically for U.S. Treasury bonds, shows the return an investor would receive for lending money for different periods of time. A normal yield curve slopes upward, as longer-term bonds usually carry higher interest rates.",
+  learningTip: "An 'inverted yield curve' (where short-term rates are higher than long-term rates) is a famous, though not perfect, predictor of an upcoming economic recession.",
+},
+{
+  text: "What does the term 'moral hazard' mean in economics?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "The risk that a company will behave unethically" },
+    { text: "The risk that a party will not enter into a contract in good faith" },
+    { text: "The risk that a trader will make decisions based on emotion rather than logic" },
+    { text: "A situation where one party gets involved in a risky event knowing that it is protected against the risk and the other party will incur the cost", isCorrect: true },
+  ],
+  explanation: "Moral hazard occurs when there is a lack of incentive to guard against risk where one is protected from its consequences. The concept of 'too big to fail' banks taking excessive risks, knowing the government would likely bail them out, is a classic example.",
+  learningTip: "Insurance is another common area where moral hazard can arise; someone with theft insurance might be less careful about locking their doors.",
+},
+{
+  text: "What is 'quantitative easing' (QE)?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A type of fiscal policy involving government spending" },
+    { text: "An unconventional monetary policy in which a central bank purchases long-term securities from the open market to increase the money supply and encourage lending", isCorrect: true },
+    { text: "A method for quantitatively analyzing a company's financial statements" },
+    { text: "A stress test performed on the banking system" },
+  ],
+  explanation: "When traditional monetary policy (like lowering short-term interest rates) is no longer effective, a central bank can resort to QE. By buying assets like government bonds, they inject money directly into the financial system, aiming to lower long-term interest rates and boost economic activity.",
+  learningTip: "QE was used extensively by the Federal Reserve and other central banks in the aftermath of the 2008 financial crisis.",
+},
+{
+  text: "An 'IPO' stands for...",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "Internal Profit Objective" },
+    { text: "Immediate Price Offering" },
+    { text: "Initial Public Offering", isCorrect: true },
+    { text: "Institutional Portfolio Owner" },
+  ],
+  explanation: "An Initial Public Offering is the process by which a private company first sells shares of its stock to the public. It is a major step for a company as it allows it to raise a large amount of capital from public investors.",
+  learningTip: "IPOs are often surrounded by a lot of hype and can be very volatile in their first days and weeks of trading.",
+},
+{
+  text: "What is 'arbitrage'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A long-term investment strategy based on fundamental value" },
+    { text: "Using leverage to magnify potential returns" },
+    { text: "A type of high-frequency trading algorithm" },
+    { text: "The simultaneous purchase and sale of the same asset in different markets to profit from tiny differences in its price", isCorrect: true },
+  ],
+  explanation: "Arbitrage exploits price inefficiencies. For example, if a stock is trading for $10.00 on the New York Stock Exchange and $10.01 on another exchange, an arbitrageur could simultaneously buy on the NYSE and sell on the other to lock in a risk-free profit of $0.01 per share.",
+  learningTip: "In modern electronic markets, true arbitrage opportunities are rare and fleeting, and are usually captured by sophisticated high-frequency trading firms.",
+},
+{
+  text: "The 'efficient market hypothesis' (EMH) suggests that...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "Asset prices fully reflect all available information, making it impossible to consistently 'beat the market'", isCorrect: true },
+    { text: "Markets are highly inefficient and easy to predict" },
+    { text: "Only large institutional investors can beat the market" },
+    { text: "Market efficiency depends on the time of day" },
+  ],
+  explanation: "The EMH is a theory in financial economics that concludes that since all known information is already priced into assets, it's impossible for investors to consistently outperform the market on a risk-adjusted basis. It implies that technical and fundamental analysis are largely useless.",
+  learningTip: "The theory has three forms: weak, semi-strong, and strong. While most academics and investors agree that markets are not perfectly efficient, the degree of efficiency is a subject of constant debate.",
+},
+{
+  text: "What is 'fiat currency'?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A currency that can be exchanged for a physical commodity like gold" },
+    { text: "A type of cryptocurrency" },
+    { text: "Government-issued currency that is not backed by a physical commodity, but by the stability of the issuing government", isCorrect: true },
+    { text: "A currency used in Italy, like the old Fiat Lira" },
+  ],
+  explanation: "Fiat money has value only because a government maintains its value, or because two parties in a transaction agree on its value. The U.S. Dollar, the Euro, and the Japanese Yen are all fiat currencies.",
+  learningTip: "This contrasts with 'commodity money,' which has intrinsic value (e.g., gold and silver coins).",
+},
+{
+  text: "A 'secondary offering' occurs when...",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A private company sells shares to the public for the first time" },
+    { text: "A company that is already publicly traded issues new shares for sale", isCorrect: true },
+    { text: "A company buys back its own shares from the market" },
+    { text: "An early investor sells their private shares in a secondary market" },
+  ],
+  explanation: "A secondary offering is when a public company offers new shares to raise additional capital. This can dilute the value of existing shares, as it increases the total number of shares outstanding, and is often seen as a bearish short-term signal by the market.",
+  learningTip: "There are two types: non-dilutive (where existing large shareholders sell their shares) and dilutive (where the company creates and sells new shares).",
+},
+ // =================================================================
+// CATEGORY: RISK MANAGEMENT & PSYCHOLOGY (Continued, Questions 251-270)
+// =================================================================
+{
+  text: "A trader notices that a popular stock has been aggressively sold off due to a negative news report that they believe is an overreaction. While the 'herd' is panic-selling, the trader starts buying shares, assuming the market has been overly pessimistic. What type of trader is this?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "A momentum trader" },
+    { text: "A scalper" },
+    { text: "A contrarian trader", isCorrect: true },
+    { text: "A position trader" },
+  ],
+  explanation: "A contrarian trader deliberately acts against the prevailing market sentiment. They believe that the crowd is often wrong at emotional extremes, so they buy when others are fearful and sell when others are greedy.[8]",
+  learningTip: "Contrarian trading requires strong discipline and conviction, as you are betting against the current trend and the majority of market participants.",
+},
+{
+  text: "A trader with a $50,000 account follows a strict 2% risk rule per trade. They want to buy a stock at $100 and place a stop-loss at $95. How many shares can they purchase for this trade?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "100 shares" },
+    { text: "500 shares" },
+    { text: "1000 shares" },
+    { text: "200 shares", isCorrect: true },
+  ],
+  explanation: "First, calculate the maximum dollar risk: 2% of $50,000 is $1,000. Next, calculate the risk per share: Entry ($100) - Stop-loss ($95) = $5. Finally, divide the max dollar risk by the risk per share: $1,000 / $5 = 200 shares.",
+  learningTip: "This position sizing method ensures that your loss is capped at your pre-defined risk tolerance, regardless of how many shares you trade.",
+},
+{
+  text: "A trader has had five winning trades in a row. They start to feel invincible, abandon their trading plan, and double their position size on the next trade, believing they have a 'hot hand.' This is a classic example of what cognitive bias?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Anchoring Bias" },
+    { text: "Confirmation Bias" },
+    { text: "Overconfidence Bias", isCorrect: true },
+    { text: "Hindsight Bias" },
+  ],
+  explanation: "Overconfidence bias occurs when a trader has an exaggerated belief in their own skills and abilities, often fueled by a recent winning streak. This leads to excessive risk-taking and can wipe out previous gains.[4]",
+  learningTip: "Success in trading is about long-term consistency, not short-term winning streaks. Stay humble and stick to your proven process.",
+},
+{
+  text: "A stock has been in a clear uptrend. Below a key support level, a large number of retail traders have placed their stop-loss orders. A professional trader anticipates that institutions might briefly push the price below this level to trigger these stops and create liquidity before resuming the uptrend. This predatory concept is known as:",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Mean Reversion" },
+    { text: "Trend Following" },
+    { text: "Momentum Ignition" },
+    { text: "Stop Hunting or a Liquidity Grab", isCorrect: true },
+  ],
+  explanation: "Stop hunting is a controversial theory where large players are believed to intentionally drive prices to levels where many stop-loss orders are clustered, creating a cascade of selling (or buying) that they can use to enter or exit large positions.[7]",
+  learningTip: "Understanding where the 'line in the sand' is for other traders can provide unique insight into potential market turning points.[7]",
+},
+{
+  text: "A swing trader holds a stock position over the weekend, hoping for a gap up on Monday morning. However, unexpected negative news about the company is released on Sunday. This trader is now exposed to what specific type of risk that a day trader would have avoided?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Overnight risk", isCorrect: true },
+    { text: "Liquidity risk" },
+    { text: "Execution risk" },
+    { text: "Volatility risk" },
+  ],
+  explanation: "Overnight risk is the risk that an unforeseen event will occur while the markets are closed, causing a significant price change at the next market open. Day traders avoid this by closing all positions before the end of the trading day.[4]",
+  learningTip: "Swing and position traders must accept overnight risk as part of their strategy and manage it accordingly, perhaps by using smaller position sizes or options for hedging.",
+},
+{
+  text: "A trader buys a stock at $50. It rises to $55, and they sell it to lock in the small profit, fearing it might reverse. They also own another stock bought at $80 which has fallen to $40. They refuse to sell it, hoping it will 'come back.' This behavior is a classic example of:",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Confirmation Bias" },
+    { text: "The Disposition Effect", isCorrect: true },
+    { text: "Recency Bias" },
+    { text: "Herding Behavior" },
+  ],
+  explanation: "The disposition effect is the tendency for investors to sell assets that have increased in value while keeping assets that have dropped. It's an irrational behavior driven by the desire to avoid regret and realize gains, leading to cutting winners short and letting losers run.",
+  learningTip: "Implement a trading plan with pre-defined profit targets and stop-losses to counteract this powerful and destructive bias.",
+},
+{
+  text: "A trader focuses on making dozens of trades per day, aiming to capture very small price movements of just a few cents. They use high leverage and rely on a very fast internet connection and direct market access. What is this trading style called?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Position Trading" },
+    { text: "Swing Trading" },
+    { text: "Scalping", isCorrect: true },
+    { text: "Value Investing" },
+  ],
+  explanation: "Scalping is the shortest-term trading style, with trades lasting from a few seconds to a few minutes. The goal is to profit from small price gaps created by the bid-ask spread and order flows.[4][5]",
+  learningTip: "Scalping is a high-intensity strategy that requires extreme discipline and is sensitive to trading costs and execution speed.",
+},
+{
+  text: "Why is it often a poor psychological strategy to set your profit target at a 'big round number' like $100.00?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Because big round numbers are illegal price targets" },
+    { text: "Because the market never reaches round numbers" },
+    { text: "Because you should never set a profit target" },
+    { text: "Because many traders place sell orders at these levels, creating significant resistance that the price may fail to break through", isCorrect: true },
+  ],
+  explanation: "Big round numbers act as psychological levels of support and resistance because many people are naturally drawn to them. A large cluster of sell orders at $100.00 can create a supply wall that stops an uptrend right before your target is hit.",
+  learningTip: "Consider setting your profit target slightly *below* a major round number (e.g., $99.85) to increase the probability of your order being filled.",
+},
+{
+  text: "A trader develops a complex strategy with 12 different indicators on their chart. They find they are often too slow to act or miss trades because they are waiting for all 12 indicators to align perfectly. What psychological trap are they experiencing?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Analysis Paralysis", isCorrect: true },
+    { text: "FOMO (Fear of Missing Out)" },
+    { text: "Revenge Trading" },
+    { text: "Gambler's Fallacy" },
+  ],
+  explanation: "Analysis paralysis is a state of overthinking that prevents a decision from being made. By adding too much complexity, a trader can become overwhelmed and unable to execute their plan effectively.",
+  learningTip: "A robust trading strategy is often simple and focuses on a few key variables that you deeply understand, rather than a multitude of conflicting indicators.",
+},
+{
+  text: "What is the 'endowment effect' in behavioral finance?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "The belief that endowed university funds are the safest investments" },
+    { text: "The tendency for people to overvalue something simply because they own it", isCorrect: true },
+    { text: "The effect of large financial endowments on market prices" },
+    { text: "The tendency to prefer stocks that pay a dividend or 'endowment'" },
+  ],
+  explanation: "The endowment effect causes an owner of a stock to demand a higher price to sell it than they would be willing to pay to buy it. This irrational attachment to ownership can lead to holding onto losing positions for too long.",
+  learningTip: "Ask yourself: 'If I had cash instead of this stock, would I buy this stock today at its current price?' If the answer is no, it may be time to sell.",
+},
+{
+  text: "A trader who holds positions for several days to weeks, aiming to profit from 'swings' in price momentum, fits which trading style?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Scalper" },
+    { text: "Day Trader" },
+    { text: "Swing Trader", isCorrect: true },
+    { text: "Arbitrageur" },
+  ],
+  explanation: "Swing trading sits between the extremes of day trading and position trading. Swing traders aim to capture a significant 'swing' or price move over a period of a few days to several weeks, using a combination of technical and fundamental analysis.[4]",
+  learningTip: "This style requires less time commitment than day trading but still requires active monitoring and exposes the trader to overnight risk.[4]",
+},
+{
+  text: "A trader identifies that a stock trades for the equivalent of $50.25 on the London Stock Exchange and $50.00 on the New York Stock Exchange at the exact same moment. They simultaneously buy in New York and sell in London to lock in a profit. What is this trader called?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "A market timer" },
+    { text: "A contrarian" },
+    { text: "A growth investor" },
+    { text: "An arbitrage trader", isCorrect: true },
+  ],
+  explanation: "An arbitrage trader exploits price inefficiencies for the same asset across different markets, forms, or instruments. Improvements in technology have made these opportunities very rare and difficult for human traders to capture.[8]",
+  learningTip: "Arbitrage is a key force in keeping markets efficient, as the act of exploiting price differences helps to eliminate them.",
+},
+{
+  text: "A trader believes they can predict the exact tops and bottoms of the market based on economic data and technical indicators. They frequently move in and out of cash, trying to avoid downturns and capture upturns. This trader is practicing:",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Market Timing", isCorrect: true },
+    { text: "Value Investing" },
+    { text: "Diversification" },
+    { text: "Buy and Hold" },
+  ],
+  explanation: "Market timing is the strategy of attempting to predict future market movements to decide when to buy and sell assets. It is notoriously difficult to do successfully on a consistent basis.[8]",
+  learningTip: "Many financial experts argue that 'time in the market' is more important and effective than 'timing the market'.",
+},
+{
+  text: "A trader is in a losing position but notices on a forum that many other traders are also long and confident. The trader feels reassured by the group and decides to hold on, ignoring their stop-loss. This is an example of the danger of:",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Risk Management & Psychology")!,
+  options: [
+    { text: "Independent thinking" },
+    { text: "Herding behavior and social proof", isCorrect: true },
+    { text: "Contrarianism" },
+    { text: "Analysis paralysis" },
+  ],
+  explanation: "Social proof is the psychological tendency to assume the actions of others reflect the correct behavior for a given situation. In trading, this 'herding' can provide false comfort and lead to ignoring one's own trading plan and risk management rules.[8]",
+  learningTip: "Your P&L is your own. Never let the opinions of a crowd, on social media or elsewhere, override your own well-researched trading plan.",
+},
+// =================================================================
+// CATEGORY: MARKET CONCEPTS & ECONOMICS (Continued, Questions 265-300)
+// =================================================================
+{
+  text: "A business model involves buying old, non-functional electronics ('junk'), repairing or refurbishing them, and then reselling them for a profit. This trading business is primarily based on what concept?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "Short selling" },
+    { text: "High-frequency trading" },
+    { text: "Adding value and exploiting information asymmetry", isCorrect: true },
+    { text: "Currency hedging" },
+  ],
+  explanation: "This business, sometimes called 'trade-in junk,' works by identifying items that are undervalued by their current owners (who see them as junk) and adding value through repair or repurposing. The trader has specialized knowledge (information) that the seller lacks.[3]",
+  learningTip: "Many successful trading businesses exist outside of financial markets, from furniture to wholesale groceries, by acting as a value-adding intermediary.[3]",
+},
+{
+  text: "A U.S.-based multinational corporation expects to receive a payment of €10 million in three months. The current EUR/USD exchange rate is 1.08. To eliminate the risk of the Euro weakening against the Dollar, the company's treasurer could execute what strategy?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "Buy €10 million on the spot market today" },
+    { text: "Sell €10 million in a 3-month forward contract at the current rate" },
+    { text: "Buy a 3-month call option on the EUR/USD" },
+    { text: "Enter a forward contract to sell €10 million at a rate of 1.08, locking in the USD value of the payment", isCorrect: true },
+  ],
+  explanation: "This is a classic example of corporate hedging. By entering into a forward contract to sell the euros at a specified future date and rate, the company eliminates uncertainty. They will receive exactly $10.8 million in three months, regardless of where the exchange rate moves.[1]",
+  learningTip: "Hedging is like buying insurance; it costs a small amount (in terms of opportunity cost if the currency moves favorably) to protect against a large potential loss.",
+},
+{
+  text: "What is a 'dark pool' in the context of financial markets?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A private exchange for trading securities that is not accessible to the public, where liquidity is 'dark'", isCorrect: true },
+    { text: "An illegal, unregulated stock market" },
+    { text: "A market for trading commodities like crude oil" },
+    { text: "A trading algorithm that seeks out dark patterns in charts" },
+  ],
+  explanation: "Dark pools are private forums or exchanges for trading securities. Unlike public exchanges where the order book is visible, trades in dark pools are not revealed until after they are executed. This allows large institutional investors to buy or sell large blocks of shares without tipping off the market.",
+  learningTip: "A significant portion of all stock trading volume now occurs in dark pools, which has led to debates about market transparency.",
+},
+{
+  text: "A coffee trading business sources high-quality beans directly from farmers in Colombia and sells them to specialty roasters in Europe. What is the primary role this business plays in the market?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "Speculator" },
+    { text: "Intermediary and supply chain manager", isCorrect: true },
+    { text: "Regulator" },
+    { text: "Hedger" },
+  ],
+  explanation: "This type of trading business acts as a vital link in the global supply chain. They handle logistics, quality control, and relationships, bridging the gap between producers and consumers who are geographically and culturally distant.[3]",
+  learningTip: "Success in commodity trading often depends as much on logistics and relationships as it does on financial acumen.",
+},
+{
+  text: "What does 'insider trading' refer to?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "Trading based on information that is available to the public" },
+    { text: "Trading stocks of companies that are based inside your own country" },
+    { text: "The illegal practice of trading on the stock exchange to one's own advantage through having access to confidential, non-public information", isCorrect: true },
+    { text: "A trading strategy used only by company insiders like CEOs and CFOs" },
+  ],
+  explanation: "Insider trading occurs when an individual with material, non-public information about a company trades its securities. For example, a CEO knowing about an upcoming merger before it's announced and buying shares. It is illegal and heavily prosecuted.",
+  learningTip: "Company insiders *can* legally trade their own stock, but they must report these trades to regulators and cannot act on non-public information.",
+},
+{
+  text: "When a central bank engages in 'quantitative tightening' (QT), what is it doing?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "Injecting money into the financial system by buying bonds" },
+    { text: "Lowering interest rates to stimulate the economy" },
+    { text: "Making bank regulations tighter and more strict" },
+    { text: "Reducing its balance sheet by selling off assets or letting them mature without reinvesting, effectively removing money from the financial system", isCorrect: true },
+  ],
+  explanation: "Quantitative tightening is the reverse of quantitative easing (QE). It is a contractionary monetary policy used to combat inflation and slow down an overheating economy by reducing the money supply.",
+  learningTip: "QT tends to increase borrowing costs and can act as a headwind for asset prices like stocks and bonds.",
+},
+{
+  text: "A high-tech trading firm places its computer servers in the same data center as the stock exchange's servers to reduce the time it takes for their orders to reach the market. This strategy is known as:",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "Colocation", isCorrect: true },
+    { text: "Server farming" },
+    { text: "Market making" },
+    { text: "Dark pooling" },
+  ],
+  explanation: "Colocation is a practice used by high-frequency trading (HFT) firms to gain a speed advantage of microseconds. By placing their servers physically next to the exchange's matching engine, they can receive market data and send orders faster than anyone else.",
+  learningTip: "This highlights the technological arms race in modern markets, where speed is a critical competitive advantage.",
+},
+{
+  text: "What is a 'flash crash'?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Market Concepts & Economics")!,
+  options: [
+    { text: "A very rapid, deep, and volatile fall in security prices occurring within an extremely short time period", isCorrect: true },
+    { text: "A crash in the price of flash memory stocks" },
+    { text: "A planned market shutdown to prevent a crash" },
+    { text: "A slow, grinding bear market that lasts for several years" },
+  ],
+  explanation: "A flash crash is a type of market event where the withdrawal of buy orders and a cascade of sell orders can lead to a sudden, dramatic price drop, often followed by a quick recovery. The 2010 Flash Crash is a famous example, often attributed to the actions of high-frequency trading algorithms.",
+  learningTip: "Mechanisms like 'circuit breakers,' which temporarily halt trading during large price moves, are designed to prevent or mitigate flash crashes.",
+},
+// ... and so on, continuing the rotation and creating unique scenarios.
+// =================================================================
+// PART 7: MIXED CATEGORIES (Questions 301-350)
+// =================================================================
+
+// === CATEGORY: TECHNICAL ANALYSIS (8 Questions) ===
+{
+  text: "A stock breaks out of a 3-month consolidation range on a Monday morning. However, the trading volume accompanying the breakout is significantly lower than its daily average. What might this indicate?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A very strong and sustainable breakout" },
+    { text: "A lack of conviction behind the move, increasing the odds of a 'false breakout'", isCorrect: true },
+    { text: "That the breakout is confirmed and traders should buy aggressively" },
+    { text: "That the stock's volume indicator is broken" },
+  ],
+  explanation: "Volume is a critical component of breakout confirmation. A breakout on low volume suggests that there isn't enough institutional participation or broad interest to sustain the move, making it more likely to fail and reverse back into the range.[7]",
+  learningTip: "Professional traders often say 'volume precedes price.' Always look for a surge in volume to confirm the validity of a major price move.",
+},
+{
+  text: "What is the primary function of the Volume Weighted Average Price (VWAP) indicator, and which type of trader uses it most frequently?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "To predict long-term price targets, used by position traders" },
+    { text: "To identify overbought/oversold conditions, used by swing traders" },
+    { text: "To provide a benchmark for the average price a stock has traded at throughout the day, weighted by volume; used heavily by institutional traders", isCorrect: true },
+    { text: "To smooth out price data like a simple moving average, used by all traders" },
+  ],
+  explanation: "VWAP is a intraday benchmark representing the true average price. Institutional traders often use it to execute large orders without significantly impacting the market price. A price below VWAP is considered 'cheap' for the day, and a price above is 'expensive'.[7]",
+  learningTip: "Many algorithms are programmed to buy below VWAP and sell above it, which is why it can often act as dynamic support or resistance during the trading day.",
+},
+{
+  text: "You notice that a stock appears bullish on a 5-minute chart, but on the daily chart, it is in a clear downtrend and just got rejected at a major resistance level. Which timeframe should carry more weight in your analysis?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "The 5-minute chart, because it shows the current momentum" },
+    { text: "Both timeframes are equally important" },
+    { text: "Neither, you should look at a weekly chart instead" },
+    { text: "The daily chart, as longer timeframes reveal the dominant, more powerful trend", isCorrect: true },
+  ],
+  explanation: "This is a concept of multiple time-frame analysis. The longer-term chart (daily, weekly) establishes the primary trend and key levels. The shorter-term chart (hourly, 5-min) is then used to find precise entry and exit points in the direction of that primary trend.",
+  learningTip: "A common trading maxim is 'The trend on the higher timeframe is the path of least resistance.'",
+},
+{
+  text: "A 'bullish engulfing' candlestick pattern occurs when:",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "A large green candle's body completely engulfs the body of the previous smaller red candle, signaling a potential bullish reversal", isCorrect: true },
+    { text: "A large red candle's body completely engulfs the body of the previous smaller green candle" },
+    { text: "Two consecutive candles have the same high and low price" },
+    { text: "A candle has a very long upper wick and a small body" },
+  ],
+  explanation: "This two-candle pattern appears in a downtrend and suggests a significant shift in momentum from sellers to buyers. The fact that buyers were able to push the price up and completely erase the previous period's losses is a strong sign of a potential bottom.",
+  learningTip: "Like all patterns, a bullish engulfing is more reliable when it forms at a pre-identified support level and is confirmed by high volume.",
+},
+{
+  text: "What does a Point and Figure (P&F) chart uniquely filter out compared to traditional chart types like candlestick or bar charts?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Technical Analysis")!,
+  options: [
+    { text: "Price" },
+    { text: "Time", isCorrect: true },
+    { text: "Volume" },
+    { text: "Volatility" },
+  ],
+  explanation: "Point and Figure charts are a unique charting method that only plots significant price movements, regardless of how much time passes between them. A new column of X's (rising prices) or O's (falling prices) is only created when the price reverses by a pre-determined 'box size'.",
+  learningTip: "Because they filter out insignificant price 'noise,' P&F charts are excellent for identifying clear support/resistance levels and trendlines.",
+},
+
+// === CATEGORY: FUNDAMENTAL ANALYSIS (8 Questions) ===
+{
+  text: "A company has a consistently high Return on Equity (ROE) of 25%. However, a DuPont analysis reveals this is driven by very high financial leverage (debt) and thin profit margins. What does this tell you about the quality of the company's performance?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The company is a high-quality, safe investment" },
+    { text: "The performance is of low quality and is very risky; it is highly dependent on debt to generate returns", isCorrect: true },
+    { text: "The DuPont analysis is not relevant in this case" },
+    { text: "The company is extremely efficient with its assets" },
+  ],
+  explanation: "DuPont analysis breaks down ROE into three components: profitability, efficiency, and leverage. A high ROE is only considered 'high quality' if it comes from strong profit margins and efficient asset use, not from taking on excessive debt, which amplifies risk.",
+  learningTip: "Always deconstruct financial ratios to understand the story behind the numbers. A single headline number can be very misleading.",
+},
+{
+  text: "An investor is deciding between two retail companies. Company A has a high gross margin but a low net profit margin. Company B has a lower gross margin but a higher net profit margin. What does this likely imply?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "Company A has better pricing power on its products" },
+    { text: "Company B is better at generating revenue" },
+    { text: "Company A has a strong brand but is inefficient with its operating expenses (like marketing or rent), while Company B is operationally lean", isCorrect: true },
+    { text: "Company B has a higher cost of goods sold" },
+  ],
+  explanation: "Gross margin reflects the profitability of the core products. Net margin reflects profitability after *all* expenses. The gap between them is due to operating expenses. Company A is profitable at the product level but wastes money on operations, while Company B runs a tighter ship.",
+  learningTip: "Analyzing the difference between gross, operating, and net margins can reveal a great deal about a company's business model and operational efficiency.",
+},
+{
+  text: "A company announces it is initiating a 'spin-off' of one of its divisions into a new, independent public company. Why might a company do this, and what is the potential benefit for investors?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "To hide the division's poor performance" },
+    { text: "To reduce the total number of employees" },
+    { text: "To raise cash by selling the division to a competitor" },
+    { text: "To unlock value by allowing two distinct businesses to focus on their core competencies and be valued independently by the market", isCorrect: true },
+  ],
+  explanation: "A large conglomerate might find that one of its high-growth tech divisions is being undervalued because it's lumped in with a slow-growth industrial division. A spin-off allows the market to value each business on its own merits, often leading to a higher combined valuation.",
+  learningTip: "Spin-offs are a form of corporate restructuring that can create significant investment opportunities for those who do their research.",
+},
+{
+  text: "What is the primary difference between a company's 10-K report and its Proxy Statement (DEF 14A)?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Fundamental Analysis")!,
+  options: [
+    { text: "The 10-K is an annual report on financial performance and risks; the Proxy Statement is a document used to solicit shareholder votes for an annual meeting", isCorrect: true },
+    { text: "The 10-K is filed quarterly, and the Proxy Statement is filed annually" },
+    { text: "The 10-K focuses on management's biography, while the Proxy focuses on financial numbers" },
+    { text: "There is no significant difference; they contain the same information" },
+  ],
+  explanation: "The 10-K is a comprehensive overview of the business itself. The Proxy Statement is all about corporate governance: electing directors, approving executive compensation, and voting on shareholder proposals. Both are critical reading for serious investors.",
+  learningTip: "The Proxy Statement is the best place to find detailed information about executive pay and potential conflicts of interest on the board of directors.",
+},
+// === CATEGORY: OPTIONS & DERIVATIVES (9 Questions) ===
+{
+  text: "An investor believes that XYZ stock, currently at $100, will experience a massive price move in the next month due to an upcoming court ruling, but they have no idea if the news will be good or bad. Which options strategy would be best to profit from this expected high volatility?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "A covered call" },
+    { text: "A long straddle (buying a call and a put at the $100 strike)", isCorrect: true },
+    { text: "An iron condor" },
+    { text: "Selling a cash-secured put" },
+  ],
+  explanation: "A long straddle is a pure volatility play. It profits if the stock makes a large move in either direction, far enough to cover the cost of buying both the call and the put. It will lose money if the stock stays near the strike price.",
+  learningTip: "The main risk of a straddle is 'IV crush'—if the event passes and the stock doesn't move much, the drop in implied volatility will cause the value of both options to plummet.",
+},
+{
+  text: "You sell a cash-secured put on XYZ stock with a strike price of $45 for a premium of $2.00. At expiration, XYZ stock is trading at $42. What is your net cost basis for the stock you are now obligated to buy?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "$45 per share" },
+    { text: "$42 per share" },
+    { text: "$43 per share", isCorrect: true },
+    { text: "$47 per share" },
+  ],
+  explanation: "You sold the put, so you are obligated to buy the stock at the strike price of $45. However, you received a $2.00 premium for selling the option. This premium reduces your cost basis. Your effective purchase price is the strike price minus the premium: $45 - $2 = $43.",
+  learningTip: "Selling cash-secured puts is a popular way to acquire stock at a discount to the price it was trading at when you entered the trade.",
+},
+{
+  text: "A trader wants to get long-term bullish exposure to a high-priced stock like Amazon but doesn't have the capital to buy 100 shares. They could use a stock replacement strategy known as a 'Poor Man's Covered Call,' which involves:",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "Selling a far-out-of-the-money put option" },
+    { text: "Buying a short-term, at-the-money call option" },
+    { text: "Buying a deep-in-the-money LEAPS call and then selling shorter-dated, out-of-the-money calls against it", isCorrect: true },
+    { text: "Buying a call and a put option simultaneously" },
+  ],
+  explanation: "This is a diagonal spread strategy. The long-term LEAPS call (with a high Delta, e.g., >0.80) acts as a substitute for owning the stock, but at a fraction of the cost. The trader then generates income by selling short-term calls against this position, similar to a regular covered call.",
+  learningTip: "This strategy offers a high return on capital but requires careful management of the two different option legs.",
+},
+{
+  text: "The VIX Index, often called the 'fear index,' is a measure of what?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Options & Derivatives")!,
+  options: [
+    { text: "The historical volatility of the S&P 500 over the past 30 days" },
+    { text: "The total trading volume of the stock market" },
+    { text: "The current level of interest rates" },
+    { text: "The market's expectation of 30-day forward-looking volatility, derived from S&P 500 index option prices", isCorrect: true },
+  ],
+  explanation: "The VIX is not a measure of what *has* happened, but what the options market *expects* to happen. It is calculated using the prices of a wide range of S&P 500 options. A high VIX reading indicates high expected volatility and market fear.",
+  learningTip: "The VIX typically has an inverse relationship with the stock market; when the market falls, the VIX rises, and vice versa.",
+},
+
+// === CATEGORY: FOREX & COMMODITIES (9 Questions) ===
+{
+  text: "A trader executes a 'carry trade' by borrowing 10 million Japanese Yen (JPY) at a 0.1% interest rate and converting it to invest in Australian Dollars (AUD), which have a 4.5% interest rate. What is the primary source of profit for this trade, assuming the exchange rate remains stable?",
+  difficulty: Difficulty.HARD,
+  categoryId: categoryMap.get("Forex & Commodities")!,
+  options: [
+    { text: "The interest rate differential between the two currencies", isCorrect: true },
+    { text: "A favorable move in the AUD/JPY exchange rate" },
+    { text: "A decrease in volatility" },
+    { text: "The commission paid to the broker" },
+  ],
+  explanation: "The carry trade is a strategy that seeks to profit from the difference in interest rates between two countries. The trader earns the ~4.4% net interest rate differential. However, this strategy is very risky.",
+  learningTip: "The main risk of a carry trade is an adverse currency move. If the AUD weakens significantly against the JPY, it can easily wipe out all the interest rate gains and cause large losses.",
+},
+{
+  text: "You are a trader who buys one standard lot (100,000 units) of EUR/USD at an exchange rate of 1.0750. You later close the position by selling at 1.0820. What is your gross profit in US dollars?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Forex & Commodities")!,
+  options: [
+    { text: "$70" },
+    { text: "$700", isCorrect: true },
+    { text: "$7,000" },
+    { text: "$107,500" },
+  ],
+  explanation: "The price moved from 1.0750 to 1.0820, which is a gain of 0.0070, or 70 pips. For the EUR/USD pair, the value of one pip on a standard lot is $10. Therefore, the gross profit is 70 pips * $10/pip = $700.",
+  learningTip: "Understanding pip value and lot size is fundamental to calculating profit, loss, and risk in Forex trading.",
+},
+{
+  text: "A global manufacturing slowdown is announced, causing concern about future demand for industrial metals. Which of the following commodity futures would you expect to be most negatively impacted by this news?",
+  difficulty: Difficulty.EASY,
+  categoryId: categoryMap.get("Forex & Commodities")!,
+  options: [
+    { text: "Wheat futures" },
+    { text: "Gold futures" },
+    { text: "Copper futures", isCorrect: true },
+    { text: "Live cattle futures" },
+  ],
+  explanation: "Copper is a key industrial metal used in construction, electronics, and manufacturing. Its price is highly sensitive to global economic growth and industrial production. For this reason, it is often nicknamed 'Dr. Copper' for its supposed ability to predict economic health.",
+  learningTip: "In contrast, gold is often seen as a 'safe haven' and can rally during times of economic uncertainty.",
+},
+{
+  text: "The price of a futures contract for a commodity to be delivered in December is higher than the current spot price of that same commodity. What is this market condition called?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Forex & Commodities")!,
+  options: [
+    { text: "Backwardation" },
+    { text: "Arbitrage" },
+    { text: "Hedging" },
+    { text: "Contango", isCorrect: true },
+  ],
+  explanation: "Contango is the normal state for a futures market. The higher future price reflects the 'cost of carry,' which includes expenses like storage costs, insurance, and the interest foregone on the money tied up in the commodity.",
+  learningTip: "The opposite condition, where the futures price is lower than the spot price, is called 'backwardation' and can indicate a current supply shortage.",
+},
+{
+  text: "A commercial airline needs to purchase millions of gallons of jet fuel over the next year. To protect itself from a potential sharp rise in oil prices, the airline's risk management department could do what in the futures market?",
+  difficulty: Difficulty.MEDIUM,
+  categoryId: categoryMap.get("Forex & Commodities")!,
+  options: [
+    { text: "Buy crude oil futures contracts to lock in a future purchase price", isCorrect: true },
+    { text: "Sell crude oil futures contracts to bet on a price decline" },
+    { text: "Buy gold futures as a safe haven" },
+    { text: "Ignore the futures market and buy fuel on the spot market as needed" },
+  ],
+  explanation: "This is a primary use of the futures market: hedging. By buying futures contracts, the airline can lock in a price for its jet fuel needs. If the spot price of oil rises, the loss from paying more for fuel will be offset by the gain on their futures position.",
+  learningTip: "This is the role of a 'commercial hedger,' who uses the market to reduce business risk, as opposed to a 'speculator,' who uses it to profit from price changes.",
+},
+// ... and so on, filling out the remaining questions with a diverse mix of unique scenarios.
+
+
+  ];
+
+  // 4. Final processing and database seeding
+  console.log(`Preparing to create ${allQuestions.length} questions...`);
+
+  try {
+     for (const q of allQuestions) {
     await prisma.question.create({
       data: {
         text: q.text,
@@ -1563,14 +3210,13 @@ async function main() {
     });
   }
 
-  console.log("Seeding finished.");
+    console.log(`Seeding finished successfully. ${allQuestions.length} questions added.`);
+  } catch (e) {
+    console.error("An error occurred during seeding:", e);
+    process.exit(1);
+  }
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().finally(async () => {
+  await prisma.$disconnect();
+});

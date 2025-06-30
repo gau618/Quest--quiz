@@ -158,6 +158,8 @@ model UserProfile {
   leaderboardEntries     LeaderboardEntry[]
   referralsMade          Referral[]       @relation("ReferrerProfile")
   referralsReceived      Referral[]       @relation("RefereeProfile")
+  invitesCreated GroupInvite[] @relation("InviteAdmin")
+  invitesUsed    GroupInvite[] @relation("InviteUsedBy")
 }
 
 // --- Core Game System ---
@@ -237,6 +239,7 @@ model FriendRequest {
   @@unique([requesterId, receiverId])
 }
 
+
 model Friendship {
   id        String      @id @default(cuid())
   createdAt DateTime    @default(now())
@@ -252,10 +255,11 @@ model ChatRoom {
   type          ChatRoomType
   name          String?
   createdAt     DateTime       @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime       @updatedAt
   members       ChatRoomMember[]
   messages      Message[]
   description   String?
+  invites       GroupInvite[]
   gameSession   GameSession?   @relation("GameSessionChat", fields: [gameSessionId], references: [id])
   gameSessionId String?        @unique
 }
@@ -280,6 +284,21 @@ model Message {
   chatRoomId String
   sender     UserProfile @relation("MessageSender", fields: [senderId], references: [userId], onDelete: Cascade)
   chatRoom   ChatRoom    @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+}
+model GroupInvite {
+  id         String      @id @default(cuid())
+  code       String      @unique
+  chatRoom   ChatRoom    @relation(fields: [chatRoomId], references: [id])
+  chatRoomId String
+  admin      UserProfile @relation(fields: [adminId], references: [id], name: "InviteAdmin")
+  adminId    String
+  expiresAt  DateTime
+  usedById   String?
+  usedAt     DateTime?
+  usedBy     UserProfile? @relation(fields: [usedById], references: [id], name: "InviteUsedBy")
+
+  @@index([chatRoomId])
+  @@index([adminId])
 }
 
 model LeaderboardEntry {

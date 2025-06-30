@@ -9,6 +9,7 @@ import { setupGracefulShutdown } from "@/lib/shutdown";
 import { gameService } from "@/lib/services/game/game.service";
 import { chatService } from "@/lib/services/chat/chat.service";
 import { lobbyService } from "@/lib/lobby/lobby.service";
+import prisma from "@/lib/prisma/client";
 
 // Create HTTP server and Socket.IO server
 const httpServer = createServer();
@@ -31,28 +32,28 @@ Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
   console.log("✅ Socket.IO is now using the Redis adapter for scaling.");
 
   // --- REDIS PUB/SUB BRIDGE: Forward events from Redis to Socket.IO ---
-  const IPC_CHANNEL = 'socket-events';
+  const IPC_CHANNEL = "socket-events";
   ipcSubscriber.connect().then(() => {
     ipcSubscriber.subscribe(IPC_CHANNEL, (message) => {
       try {
         const { target, ids, event, payload } = JSON.parse(message);
-        if (target === 'user') {
+        if (target === "user") {
           ids.forEach((userId: string) => {
             const sid = userSocketMap.get(userId);
             if (sid) io.to(sid).emit(event, payload);
           });
-        } else if (target === 'room') {
+        } else if (target === "room") {
           ids.forEach((roomId: string) => {
             io.to(roomId).emit(event, payload);
           });
-        } else if (target === 'participant') {
+        } else if (target === "participant") {
           ids.forEach((participantId: string) => {
             const sid = participantSocketMap.get(participantId);
             if (sid) io.to(sid).emit(event, payload);
           });
         }
       } catch (err) {
-        console.error('[SocketServer] Failed to handle IPC message:', err);
+        console.error("[SocketServer] Failed to handle IPC message:", err);
       }
     });
     console.log("✅ Socket.IO Redis Pub/Sub bridge is active.");
@@ -135,50 +136,95 @@ io.on("connection", (socket: Socket) => {
   // --- Chat events ---
   socket.on("chat:join_rooms", (roomIds: string[]) => {
     if (Array.isArray(roomIds)) {
-      console.log(`[SERVER] Received chat:join_rooms from user ${userId}. Joining rooms:`, roomIds);
+      console.log(
+        `[SERVER] Received chat:join_rooms from user ${userId}. Joining rooms:`,
+        roomIds
+      );
       roomIds.forEach((roomId) => socket.join(roomId));
     }
   });
 
   socket.on(
-  "chat:send_message",
-  async (data: { chatRoomId: string; content: string }) => {
-    try {
-      // Save and get the new message from the service
-      const newMessage = await chatService.sendMessage(userId, data.chatRoomId, data.content);
+    "chat:send_message",
+    async (data: { chatRoomId: string; content: string }) => {
+      try {
+        // Save and get the new message from the service
+        const newMessage = await chatService.sendMessage(
+          userId,
+          data.chatRoomId,
+          data.content
+        );
 
-      // Only emit to other users in the room (not the sender)
-      socket.to(data.chatRoomId).emit('chat:receive_message', newMessage);
+        // Only emit to other users in the room (not the sender)
+        socket.to(data.chatRoomId).emit("chat:receive_message", newMessage);
 
-      // Optionally, you can acknowledge to the sender if needed:
-      // socket.emit('chat:message_sent', newMessage);
-
-    } catch (error: any) {
-      socket.emit("chat:error", {
-        message: error.message,
-        chatRoomId: data.chatRoomId,
-      });
+        // Optionally, you can acknowledge to the sender if needed:
+        // socket.emit('chat:message_sent', newMessage);
+      } catch (error: any) {
+        socket.emit("chat:error", {
+          message: error.message,
+          chatRoomId: data.chatRoomId,
+        });
+      }
     }
-  }
-);
+  );
 
-
-socket.on("chat:typing", (data: { chatRoomId: string }) => {
-  // Broadcast to everyone else in the room that this user is typing
-  socket.to(data.chatRoomId).emit("chat:typing_indicator", {
-    chatRoomId: data.chatRoomId,
-    user: { userId }, // We can get the username on the client from existing data
+  socket.on("chat:typing", (data: { chatRoomId: string }) => {
+    // Broadcast to everyone else in the room that this user is typing
+    socket.to(data.chatRoomId).emit("chat:typing_indicator", {
+      chatRoomId: data.chatRoomId,
+      user: { userId }, // We can get the username on the client from existing data
+    });
   });
-});
+  socket.on(
+    "chat:add_member",
+    async (data: { roomId: string; userId: string }) => {
+      try {
+        // The user ID of the person performing the action
+        const adminId = socket.handshake.auth.userId;
+        console.log(
+          `[Socket.IO] User ${adminId} is trying to add member ${data.userId} to room ${data.roomId}.`
+        );
+        if (!adminId) throw new Error("Authentication error.");
 
-// --- ADD THIS NEW "stop_typing" LISTENER ---
-socket.on("chat:stop_typing", (data: { chatRoomId: string }) => {
-  // Broadcast to everyone else that this user has stopped typing
-  socket.to(data.chatRoomId).emit("chat:stop_typing_indicator", {
-    chatRoomId: data.chatRoomId,
-    user: { userId },
+        // The service handles all logic: admin check, adding to DB
+        // Assuming this service exists from our previous discussions
+        const newMember = await chatService.addMemberByAdmin(
+          adminId,
+          data.roomId,
+          data.userId
+        );
+
+        // Broadcast to the entire room that a new member has joined
+        io.to(data.roomId).emit("chat:member_added", {
+          roomId: data.roomId,
+          newMember: {
+            userId: newMember.userId,
+            role: newMember.role,
+            userProfile: newMember.userProfile, // Send the full profile
+          },
+        });
+
+        // Also, make the new member's socket join the room if they are online
+        const newMemberSocketId = userSocketMap.get(data.userId);
+        if (newMemberSocketId) {
+          io.sockets.sockets.get(newMemberSocketId)?.join(data.roomId);
+        }
+      } catch (error: any) {
+        // Send an error event back ONLY to the person who tried to add the member
+        socket.emit("chat:error", { message: error.message });
+      }
+    }
+  );
+
+  // --- ADD THIS NEW "stop_typing" LISTENER ---
+  socket.on("chat:stop_typing", (data: { chatRoomId: string }) => {
+    // Broadcast to everyone else that this user has stopped typing
+    socket.to(data.chatRoomId).emit("chat:stop_typing_indicator", {
+      chatRoomId: data.chatRoomId,
+      user: { userId },
+    });
   });
-});
 
   socket.on("disconnect", (reason) => {
     console.log(`[Socket.IO] User ${userId} disconnected. Reason: ${reason}`);

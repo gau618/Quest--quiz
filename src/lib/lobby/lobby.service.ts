@@ -13,7 +13,7 @@ class LobbyService {
 
   /**
    * Generates a unique, short, alphanumeric room code.
-   * @returns A unique 6-character room code.
+   * @returns A unique 10-character room code.
    */
   private async generateRoomCode(): Promise<string> {
     let code: string;

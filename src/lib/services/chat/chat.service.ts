@@ -119,6 +119,7 @@ export const chatService = {
     const member = await prisma.chatRoomMember.findUnique({
       where: { chatRoomId_userId: { chatRoomId, userId } },
     });
+    console.log(member)
 
     if (!member) {
       throw new Error("Access Denied: You are not a member of this group.");
@@ -132,11 +133,20 @@ export const chatService = {
     notificationService.sendToRoom(chatRoomId, 'chat:group_deleted', { chatRoomId });
 
     // Use a transaction to delete all related data atomically
-    await prisma.$transaction([
-      prisma.message.deleteMany({ where: { chatRoomId } }),
-      prisma.chatRoomMember.deleteMany({ where: { chatRoomId } }),
-      prisma.chatRoom.delete({ where: { id: chatRoomId } }),
-    ]);
+   await prisma.$transaction([
+    // Delete all messages associated with the chat room
+    prisma.message.deleteMany({ where: { chatRoomId } }),
+    
+    // --- THE CRITICAL FIX IS HERE ---
+    // Delete all group invites associated with the chat room
+    prisma.groupInvite.deleteMany({ where: { chatRoomId } }),
+    
+    // Delete all memberships for the chat room
+    prisma.chatRoomMember.deleteMany({ where: { chatRoomId } }),
+    
+    // Finally, delete the chat room itself now that all dependencies are gone
+    prisma.chatRoom.delete({ where: { id: chatRoomId } }),
+  ]);
 
     return { success: true, message: "Group deleted successfully." };
   },
@@ -167,7 +177,57 @@ export const chatService = {
     notificationService.sendToRoom(chatRoomId, 'chat:group_updated', { updatedRoom });
     return updatedRoom;
   },
-  
+
+ async addMemberByAdmin(adminAuthId: string, chatRoomId: string, newMemberAuthId: string) {
+    // 1. Verify the person adding is an admin of that room
+    const adminMembership = await prisma.chatRoomMember.findUnique({
+      where: {
+        chatRoomId_userId: { chatRoomId, userId: adminAuthId }, // Assuming userId here is UserProfile.id
+        role: 'ADMIN',
+      },
+    });
+
+    if (!adminMembership) {
+      throw new Error("Permission Denied: Only group admins can add new members.");
+    }
+  console.log(newMemberAuthId)
+    // --- CRITICAL FIX 1: Ensure the new member has a UserProfile record ---
+    // We need the UserProfile.id, not the authentication ID.
+    const newMemberProfile = await prisma.userProfile.findUnique({
+      where: { userId: newMemberAuthId }, // Assuming UserProfile has a 'userId' field that stores the Auth ID
+    });
+
+    if (!newMemberProfile) {
+      throw new Error("Cannot add member: User profile not found for this user ID. Please ensure they have a complete profile.");
+    }
+
+    // 2. Check if the user is already a member
+    const existingMembership = await prisma.chatRoomMember.findUnique({
+      where: { chatRoomId_userId: { chatRoomId, userId: newMemberProfile.id } }, // Use newMemberProfile.id here
+    });
+
+    if (existingMembership) {
+      throw new Error("User is already a member of this group.");
+    }
+
+    // 3. Create the new member record
+    const newMember = await prisma.chatRoomMember.create({
+      data: {
+        chatRoomId,
+        userId: newMemberProfile.userId, // --- CRITICAL FIX 2: Use newMemberProfile.id for the foreign key ---
+        role: 'MEMBER',
+      },
+      // IMPORTANT: Include the userProfile to send complete data to the frontend
+      include: {
+        userProfile: {
+          select: { id: true, userId: true, username: true, avatarUrl: true },
+        },
+      },
+    });
+
+    return newMember;
+  }
+,
   /**
    * Removes a member from a group.
    * Can be called by an admin to remove another user, or by a member to leave.

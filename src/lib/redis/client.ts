@@ -2,7 +2,7 @@
 import Redis from 'ioredis';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-
+console.log(`Connecting to Redis at ${REDIS_URL}`);
 // Main Redis client for general operations
 const redis = new Redis(REDIS_URL);
 // Separate Redis client for publishing messages (BullMQ uses its own for internal pub/sub)

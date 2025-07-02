@@ -50,53 +50,69 @@ export const friendsService = {
    * @param receiverId The ID of the user receiving the request.
    * @returns The newly created friend request.
    */
-  async sendFriendRequest(requesterId: string, receiverId: string) {
-    if (requesterId === receiverId) {
-      throw new Error("You cannot send a friend request to yourself.");
-    }
+async sendFriendRequest(requesterId: string, receiverId: string) {
+  if (requesterId === receiverId) {
+    throw new Error("You cannot send a friend request to yourself.");
+  }
 
-    const existingFriendship = await prisma.friendship.findFirst({
-      where: {
-        OR: [
-          { user1Id: requesterId, user2Id: receiverId },
-          { user1Id: receiverId, user2Id: requesterId },
-        ],
-      },
-    });
-    if (existingFriendship) {
-      throw new Error("You are already friends with this user.");
-    }
+  // Check both users exist in UserProfile
+  const requesterProfile = await prisma.userProfile.findUnique({
+    where: { userId: requesterId },
+  });
+  const receiverProfile = await prisma.userProfile.findUnique({
+    where: { userId: receiverId },
+  });
 
-    const existingRequest = await prisma.friendRequest.findFirst({
-      where: {
-        requesterId,
-        receiverId,
-      },
-    });
-    if (existingRequest && existingRequest.status === 'PENDING') {
-      throw new Error("A friend request has already been sent to this user.");
-    }
+  if (!requesterProfile || !receiverProfile) {
+    throw new Error("One or both users do not exist in UserProfile.");
+  }
 
-    const newRequest = await prisma.friendRequest.upsert({
-      where: { requesterId_receiverId: { requesterId, receiverId } },
-      update: { status: FriendRequestStatus.PENDING },
-      create: {
-        requesterId,
-        receiverId,
-        status: FriendRequestStatus.PENDING,
-      },
-    });
+  // Already friends?
+  const existingFriendship = await prisma.friendship.findFirst({
+    where: {
+      OR: [
+        { user1Id: requesterId, user2Id: receiverId },
+        { user1Id: receiverId, user2Id: requesterId },
+      ],
+    },
+  });
+  if (existingFriendship) {
+    throw new Error("You are already friends with this user.");
+  }
 
-    await notificationService.sendNotification(receiverId, 'FRIEND_REQUEST_RECEIVED', {
-      from: {
-        userId: requesterId,
-      },
-      requestId: newRequest.id,
-    });
+  // Request already sent?
+  const existingRequest = await prisma.friendRequest.findFirst({
+    where: {
+      requesterId,
+      receiverId,
+    },
+  });
+  if (existingRequest && existingRequest.status === 'PENDING') {
+    throw new Error("A friend request has already been sent to this user.");
+  }
 
-    return newRequest;
-  },
+  // ✅ Safe to upsert
+  const newRequest = await prisma.friendRequest.upsert({
+    where: { requesterId_receiverId: { requesterId, receiverId } },
+    update: { status: FriendRequestStatus.PENDING },
+    create: {
+      requesterId,
+      receiverId,
+      status: FriendRequestStatus.PENDING,
+    },
+  });
 
+  await notificationService.sendNotification(receiverId, 'FRIEND_REQUEST_RECEIVED', {
+    from: {
+      userId: requesterId,
+    },
+    requestId: newRequest.id,
+  });
+
+  return newRequest;
+}
+
+,
   /**
    * Responds to a pending friend request (accept or decline).
    * Ensures the user responding is the intended receiver of the request.

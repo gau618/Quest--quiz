@@ -7,6 +7,7 @@ import { friendsService } from "@/lib/services/friends/friends.service";
 export const POST = withAuth(["USER"], async (req: NextRequest, { user }) => {
   try {
     const { receiverId } = await req.json();
+    console.log(receiverId)
     if (!receiverId) {
       return NextResponse.json(
         { error: "receiverId is required." },
@@ -16,6 +17,7 @@ export const POST = withAuth(["USER"], async (req: NextRequest, { user }) => {
     const request = await friendsService.sendFriendRequest(user.id, receiverId);
     return NextResponse.json({ success: true, request });
   } catch (error: any) {
+    console.error("Error sending friend request:", error);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 });

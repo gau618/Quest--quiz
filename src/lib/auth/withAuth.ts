@@ -23,10 +23,10 @@ type AuthenticatedRouteHandler = (
 // Helper: build CORS headers dynamically
 function getCorsHeaders(origin: string | null): HeadersInit {
   return {
-    'Access-Control-Allow-Origin': origin ?? '*',
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Credentials': 'true',
+    // Removed 'Access-Control-Allow-Credentials': 'true' to allow wildcard origin
   };
 }
 
@@ -48,7 +48,10 @@ export function withAuth(allowedRoles: string[], handler: AuthenticatedRouteHand
         JSON.stringify({ message: 'Token required.' }),
         {
           status: 403,
-          headers: getCorsHeaders(origin),
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(origin),
+          },
         }
       );
     }
@@ -65,7 +68,10 @@ export function withAuth(allowedRoles: string[], handler: AuthenticatedRouteHand
           JSON.stringify({ message: 'User not found.' }),
           {
             status: 404,
-            headers: getCorsHeaders(origin),
+            headers: {
+              'Content-Type': 'application/json',
+              ...getCorsHeaders(origin),
+            },
           }
         );
       }
@@ -78,7 +84,10 @@ export function withAuth(allowedRoles: string[], handler: AuthenticatedRouteHand
       // if (!hasPermission) {
       //   return new NextResponse(JSON.stringify({ message: 'Access forbidden.' }), {
       //     status: 403,
-      //     headers: getCorsHeaders(origin),
+      //     headers: {
+      //       'Content-Type': 'application/json',
+      //       ...getCorsHeaders(origin),
+      //     },
       //   });
       // }
 
@@ -100,7 +109,10 @@ export function withAuth(allowedRoles: string[], handler: AuthenticatedRouteHand
       const message = status === 401 ? 'Wrong authentication token.' : 'Internal server error during authentication.';
       return new NextResponse(JSON.stringify({ message }), {
         status,
-        headers: getCorsHeaders(origin),
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(origin),
+        },
       });
     }
   };

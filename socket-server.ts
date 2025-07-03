@@ -28,10 +28,11 @@ const pubClient = createClient({
   socket: redisUrl?.startsWith("rediss://")
     ? {
         tls: true,
-        rejectUnauthorized: false // Add this for cloud Redis services
+        rejectUnauthorized: false
       }
     : undefined,
 });
+
 
 
 

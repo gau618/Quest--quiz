@@ -2,11 +2,34 @@
 import { Queue, Worker, Job, WorkerOptions, JobsOptions, Repeat } from "bullmq";
 import IORedis from "ioredis";
 
-const connection = new IORedis({
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379", 10),
-  password: process.env.REDIS_PASSWORD || undefined,
+const REDIS_URL = process.env.REDIS_URL;
+
+if (!REDIS_URL) {
+  throw new Error('❌ REDIS_URL environment variable is required for queue configuration');
+}
+
+console.log('Queue Redis URL configured:', REDIS_URL ? 'YES' : 'NO');
+const isSecure = REDIS_URL.startsWith("rediss://");
+
+const connection = new IORedis(REDIS_URL, {
   maxRetriesPerRequest: null,
+  retryDelayOnFailover: 100,
+  enableReadyCheck: false,
+  lazyConnect: true,
+  ...(isSecure ? { tls: { rejectUnauthorized: false } } : {}),
+});
+
+// Add connection event handlers
+connection.on('connect', () => {
+  console.log('✅ Queue Redis Connected');
+});
+
+connection.on('error', (err) => {
+  console.error('❌ Queue Redis Connection Error:', err.message);
+});
+
+connection.on('ready', () => {
+  console.log('✅ Queue Redis Ready');
 });
 
 // --- Register and manage all queues, including the new lobby-countdown-jobs queue ---

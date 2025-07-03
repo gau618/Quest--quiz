@@ -18,9 +18,12 @@ const io = new Server(httpServer, {
 });
 
 // Redis client setup
+const redisUrl = process.env.REDIS_URL;
 const pubClient = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
+  url: redisUrl,
+  socket: redisUrl?.startsWith("rediss://") ? { tls: true } : undefined,
 });
+
 const subClient = pubClient.duplicate();
 
 // Redis Pub/Sub bridge for inter-process communication

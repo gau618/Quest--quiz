@@ -310,3 +310,13 @@ httpServer.listen(PORT, '0.0.0.0', () => {
 });
 
 setupGracefulShutdown(httpServer);
+
+setInterval(() => {
+  const mem = process.memoryUsage();
+  console.log("[Memory Stats]", {
+    rss: `${(mem.rss / 1024 / 1024).toFixed(2)} MB`,
+    heapUsed: `${(mem.heapUsed / 1024 / 1024).toFixed(2)} MB`,
+    heapTotal: `${(mem.heapTotal / 1024 / 1024).toFixed(2)} MB`,
+    external: `${(mem.external / 1024 / 1024).toFixed(2)} MB`,
+  });
+}, 5000);

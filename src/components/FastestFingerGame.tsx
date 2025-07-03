@@ -1,4 +1,5 @@
 // src/components/FastestFingerGame.tsx
+
 import React, {
   useState,
   useEffect,
@@ -38,6 +39,7 @@ const GAME_STATUSES = [
   "finished",
 ] as const;
 type FFGameStatus = (typeof GAME_STATUSES)[number];
+
 interface Player {
   participantId: string;
   userId: string;
@@ -432,7 +434,6 @@ export const FastestFingerGame = () => {
       return () => clearTimeout(timer);
     }
   }, [gameStatus, totalTimeLeft]);
-console.log('gameStatus:', gameStatus);
 
   const getOptionStyle = (optionId: string) => {
     if (correctOptionId) {
@@ -492,9 +493,9 @@ console.log('gameStatus:', gameStatus);
           <button
             onClick={findMatch}
             style={styles.button}
-            disabled={!authInfo || !isConnected || gameStatus === 'searching' as FFGameStatus}
+            disabled={!authInfo || !isConnected || gameStatus !== "idle"}
           >
-            {gameStatus === 'searching' as FFGameStatus
+            {gameStatus !== "idle"
               ? "Finding Match..."
               : !isConnected
               ? "Connecting..."

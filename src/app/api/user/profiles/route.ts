@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma/client';
-import { withAuth } from '@/lib/auth/withAuth';
+import { withAuth, AuthUser } from '@/lib/auth/withAuth';
 
 const allowedRoles = ['ADMIN', 'USER']; // Adjust as needed
 

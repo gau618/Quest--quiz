@@ -250,7 +250,7 @@ export const QuickDuelGame = () => {
               <option value={5}>5 Minutes</option>
             </select>
           </div>
-          <button onClick={handleFindMatch} style={styles.button} disabled={!authInfo || !isConnected || gameStatus === "searching"}>
+          <button onClick={handleFindMatch} style={styles.button} disabled={!authInfo || !isConnected || gameStatus !== "idle"}>
             {gameStatus !== "idle" ? "Finding Match..." : "Find Match"}
           </button>
           {!isConnected && authInfo && <p style={styles.statusText}>Connecting to game server...</p>}

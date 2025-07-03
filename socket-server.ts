@@ -19,15 +19,20 @@ const io = new Server(httpServer, {
 
 // Redis client setup
 const redisUrl = process.env.REDIS_URL;
+if (!redisUrl) {
+  console.log(redisUrl)
+  throw new Error("❌ REDIS_URL is not defined in environment variables.");
+}
 const pubClient = createClient({
   url: redisUrl,
   socket: redisUrl?.startsWith("rediss://")
     ? {
         tls: true,
-        host: new URL(redisUrl).hostname // extract host from the URL
+        rejectUnauthorized: false // Add this for cloud Redis services
       }
     : undefined,
 });
+
 
 
 const subClient = pubClient.duplicate();

@@ -5,6 +5,7 @@ import Redis from "ioredis";
 const REDIS_URL = process.env.REDIS_URL;
 console.log(REDIS_URL)
 const isSecure = REDIS_URL.startsWith("rediss://");
+console.log(isSecure)
 
 // Main Redis clients
 const redis = new Redis(REDIS_URL, isSecure ? { tls: {} } : undefined);

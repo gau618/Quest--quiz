@@ -1,16 +1,13 @@
-// src/app/api/practice/start/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, AuthUser } from "@/lib/auth/withAuth";
-import { gameService } from "@/lib/services/game/game.service"; // Adjust path if game.service is moved
+import { gameService } from "@/lib/services/game/game.service";
 import { Difficulty } from "@prisma/client";
 
-// The actual handler function for the POST method
 async function POST_HANDLER(
   req: NextRequest,
-  { user }: { user: AuthUser } // user object is injected by withAuth
+  { user }: { user: AuthUser }
 ) {
   try {
-    // Parse the request body as JSON
     const body = await req.json();
     const { difficulty, categories, numQuestions } = body;
 
@@ -21,13 +18,14 @@ async function POST_HANDLER(
         { status: 400 }
       );
     }
-    // categories can be an empty array (for "All Categories"), but it must be an array.
+
     if (!Array.isArray(categories)) {
       return NextResponse.json(
         { message: "Categories must be provided as an array." },
         { status: 400 }
       );
     }
+
     if (
       typeof numQuestions !== "number" ||
       numQuestions <= 0 ||
@@ -39,40 +37,39 @@ async function POST_HANDLER(
       );
     }
 
-    // FIX: Capture the return value from gameService.startPractice
-    const { sessionId, participantId, totalQuestions } =
-      await gameService.startPractice(
-        user.id,
-        difficulty,
-        categories,
-        numQuestions
-      );
+    // Call service and handle response safely
+    const result = await gameService.startPractice(
+      user.id,
+      difficulty,
+      categories,
+      numQuestions
+    );
 
-    // Respond with success, including the session and participant IDs
+    if ("error" in result) {
+      return NextResponse.json({ message: result.error }, { status: 400 });
+    }
+
+    const { sessionId, participantId, totalQuestions } = result;
+
     return NextResponse.json(
       {
         success: true,
         message: "Practice session successfully started.",
-        sessionId, // Include sessionId
-        participantId, // Include participantId
-        totalQuestions, // Include totalQuestions
+        sessionId,
+        participantId,
+        totalQuestions,
       },
       { status: 200 }
     );
   } catch (error: any) {
-    // Catch potential errors from gameService.startPractice as well
     console.error("Error starting practice session:", error);
-    // If gameService.startPractice throws an error (e.g., no questions found),
-    // we should return that specific error message to the frontend.
-    if (error.message) {
-      return NextResponse.json({ message: error.message }, { status: 400 }); // Bad Request for user-facing errors
-    }
     return NextResponse.json(
-      { message: "Internal Server Error" },
+      {
+        message: error?.message || "Internal Server Error",
+      },
       { status: 500 }
     );
   }
 }
 
-// Wrap the handler with the withAuth middleware and export it as the POST method.
 export const POST = withAuth(["USER", "ADMIN"], POST_HANDLER);

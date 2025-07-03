@@ -11,8 +11,43 @@ import { chatService } from "@/lib/services/chat/chat.service";
 import { lobbyService } from "@/lib/lobby/lobby.service";
 import prisma from "@/lib/prisma/client";
 
-// Create HTTP server and Socket.IO server
-const httpServer = createServer();
+// Create HTTP server with health check endpoint
+const httpServer = createServer((req, res) => {
+  // Add CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+
+  // Health check endpoints
+  if (req.url === '/health' || req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'ok',
+      service: 'Socket.IO Server',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      port: process.env.PORT || process.env.SOCKET_PORT || 4000
+    }));
+  } else if (req.url === '/status') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'running',
+      connections: io.engine.clientsCount,
+      redis: 'connected'
+    }));
+  } else {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not Found');
+  }
+});
+
 const io = new Server(httpServer, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
@@ -20,12 +55,15 @@ const io = new Server(httpServer, {
 // Redis client setup
 const redisUrl = process.env.REDIS_URL;
 if (!redisUrl) {
-  console.log(redisUrl)
+  console.error("❌ REDIS_URL is not defined in environment variables.");
   throw new Error("❌ REDIS_URL is not defined in environment variables.");
 }
+
+console.log("✅ Redis URL configured for Socket.IO server");
+
 const pubClient = createClient({
   url: redisUrl,
-  socket: redisUrl?.startsWith("rediss://")
+  socket: redisUrl.startsWith("rediss://")
     ? {
         tls: true,
         rejectUnauthorized: false
@@ -33,13 +71,23 @@ const pubClient = createClient({
     : undefined,
 });
 
-
-
-
 const subClient = pubClient.duplicate();
 
 // Redis Pub/Sub bridge for inter-process communication
 const ipcSubscriber = pubClient.duplicate();
+
+// Add Redis error handling
+pubClient.on('error', (err) => {
+  console.error('❌ Redis Pub Client Error:', err.message);
+});
+
+subClient.on('error', (err) => {
+  console.error('❌ Redis Sub Client Error:', err.message);
+});
+
+ipcSubscriber.on('error', (err) => {
+  console.error('❌ Redis IPC Subscriber Error:', err.message);
+});
 
 // Connect Redis clients and set up the adapter
 Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
@@ -73,6 +121,8 @@ Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
     });
     console.log("✅ Socket.IO Redis Pub/Sub bridge is active.");
   });
+}).catch((err) => {
+  console.error("❌ Failed to connect Redis clients:", err);
 });
 
 // Socket.IO error handling
@@ -191,6 +241,7 @@ io.on("connection", (socket: Socket) => {
       user: { userId }, // We can get the username on the client from existing data
     });
   });
+  
   socket.on(
     "chat:add_member",
     async (data: { roomId: string; userId: string }) => {
@@ -250,10 +301,12 @@ io.on("connection", (socket: Socket) => {
   });
 });
 
-// Start the server
-const PORT = process.env.SOCKET_PORT || 4000;
-httpServer.listen(PORT, () =>
-  console.log(`🚀 Socket.IO server listening on port ${PORT}`)
-);
+// Start the server with proper port configuration for Render
+const PORT = process.env.PORT || process.env.SOCKET_PORT || 4000;
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Socket.IO server listening on port ${PORT}`);
+  console.log(`📡 Health check available at: http://localhost:${PORT}/health`);
+  console.log(`📊 Status endpoint available at: http://localhost:${PORT}/status`);
+});
 
 setupGracefulShutdown(httpServer);

@@ -21,8 +21,14 @@ const io = new Server(httpServer, {
 const redisUrl = process.env.REDIS_URL;
 const pubClient = createClient({
   url: redisUrl,
-  socket: redisUrl?.startsWith("rediss://") ? { tls: true } : undefined,
+  socket: redisUrl?.startsWith("rediss://")
+    ? {
+        tls: true,
+        host: new URL(redisUrl).hostname // extract host from the URL
+      }
+    : undefined,
 });
+
 
 const subClient = pubClient.duplicate();
 

@@ -2,7 +2,8 @@
 
 import Redis from "ioredis";
 
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+const REDIS_URL = process.env.REDIS_URL;
+console.log(REDIS_URL)
 const isSecure = REDIS_URL.startsWith("rediss://");
 
 // Main Redis clients

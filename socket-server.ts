@@ -67,10 +67,12 @@ const httpServer = createServer((req, res) => {
 });
 
 // Configure CORS based on environment
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['*'];
-const corsOptions = allowedOrigins.includes('*') 
-  ? { origin: "*", methods: ["GET", "POST"] }
-  : { origin: allowedOrigins, methods: ["GET", "POST"], credentials: true };
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['*', 'https://dev.tradeved.com', 'https://dev.tradeved.com/'];
+const corsOptions = {
+  origin: "*", // Using * for dev simplicity, or use allowedOrigins logic if stricter security needed
+  methods: ["GET", "POST", "OPTIONS"], 
+  credentials: true 
+};
 
 const io = new Server(httpServer, {
   cors: corsOptions,

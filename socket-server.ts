@@ -134,6 +134,7 @@ Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
   const ALLOWED_REDIS_EVENTS = new Set([
     'game:started',
     'game:finished',
+    'game:end',
     'game:error', 
     'question:new',
     'answer:feedback',

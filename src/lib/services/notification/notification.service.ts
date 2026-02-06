@@ -16,6 +16,7 @@ interface IpcPayload {
 const ALLOWED_EVENTS = new Set([
     'game:started',
     'game:finished',
+    'game:end',
     'game:error', 
     'question:new',
     'answer:feedback',

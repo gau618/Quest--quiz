@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 const ALLOWED_ORIGINS = [
-  'https://tradeved.com',
   'https://www.tradeved.com',
-  'https://dev.tradeved.com',
-  'http://localhost:3000',
-  'http://localhost:4000'
+  'https://dev.tradeved.com'
 ];
+
+// Add localhost for development environments only
+if (process.env.NODE_ENV !== 'production') {
+  ALLOWED_ORIGINS.push('http://localhost:3000', 'http://localhost:4000');
+}
 
 export function middleware(request: NextRequest) {
   const origin = request.headers.get('origin');

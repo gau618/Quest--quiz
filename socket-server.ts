@@ -67,9 +67,21 @@ const httpServer = createServer((req, res) => {
 });
 
 // Configure CORS based on environment
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['*', 'https://dev.tradeved.com', 'https://dev.tradeved.com/'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+const isProduction = process.env.NODE_ENV === 'production';
+
 const corsOptions = {
-  origin: "*", // Using * for dev simplicity, or use allowedOrigins logic if stricter security needed
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || !isProduction) {
+      callback(null, true);
+    } else {
+      console.warn(`Blocked CORS request from origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ["GET", "POST", "OPTIONS"], 
   credentials: true 
 };

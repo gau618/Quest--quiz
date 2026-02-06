@@ -1,5 +1,5 @@
 // src/lib/queue/config.ts
-import { Queue, Worker, Job, WorkerOptions, JobsOptions, Repeat } from "bullmq";
+import { Queue, Worker, Job, WorkerOptions, JobsOptions } from "bullmq";
 import IORedis from "ioredis";
 
 const REDIS_URL = process.env.REDIS_URL;
@@ -11,9 +11,8 @@ if (!REDIS_URL) {
 console.log('Queue Redis URL configured:', REDIS_URL ? 'YES' : 'NO');
 const isSecure = REDIS_URL.startsWith("rediss://");
 
-const connection = new IORedis(REDIS_URL, {
+const connection = new IORedis(REDIS_URL as string, {
   maxRetriesPerRequest: null,
-  retryDelayOnFailover: 100,
   enableReadyCheck: false,
   lazyConnect: true,
   ...(isSecure ? { tls: { rejectUnauthorized: false } } : {}),
@@ -46,18 +45,19 @@ export const queueService = {
   async dispatch<T>(
     queueName: string,
     data: T,
-    options?: JobsOptions
+    options?: JobsOptions & { name?: string }
   ): Promise<Job<T>> {
     const queue = this.getQueue(queueName);
+    const { name: jobName, ...restOptions } = options || {};
     const job = await queue.add(
-      options?.name || queueName, // Use explicit job name if provided, else queueName
+      jobName || queueName,
       data,
       {
         attempts: 3,
         backoff: { type: "exponential", delay: 1000 },
         removeOnComplete: true,
         removeOnFail: { count: 100 },
-        ...options,
+        ...restOptions,
       }
     );
     return job;
@@ -68,12 +68,13 @@ export const queueService = {
     return await queue.remove(jobId);
   },
 
-  async removeRepeatableJob(queueName: string, repeat: Repeat): Promise<void> {
+  async removeRepeatableJob(queueName: string, repeat: { pattern?: string; every?: number }): Promise<void> {
     try {
       const queue = this.getQueue(queueName);
       const jobs = await queue.getRepeatableJobs();
       for (const job of jobs) {
-        if (job.pattern === repeat.pattern && job.every === repeat.every) {
+        const jobEvery = job.every ? Number(job.every) : undefined;
+        if (job.pattern === (repeat.pattern ?? null) && jobEvery === repeat.every) {
           await queue.removeRepeatableByKey(job.key);
           console.log(
             `[QueueService] Removed existing repeatable job with key: ${job.key}`

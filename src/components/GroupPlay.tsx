@@ -149,14 +149,16 @@ export default function GroupPlay({ onClose }: { onClose: () => void }) {
 
     socket.on("group_game:started", (data) => {
       setGame(data);
-      setScores(
-        lobby
-          ? lobby.participants.reduce(
-              (acc: any, p: any) => ({ ...acc, [p.participantId]: 0 }),
-              {}
-            )
-          : {}
-      );
+      // Use Object.create(null) to prevent prototype pollution
+      const initialScores = Object.create(null);
+      if (lobby && Array.isArray(lobby.participants)) {
+        lobby.participants.forEach((p: any) => {
+          if (p && typeof p.participantId === 'string') {
+            initialScores[p.participantId] = 0;
+          }
+        });
+      }
+      setScores(initialScores);
       setStep("playing");
       setCountdown(null);
       // --- Start game timer ---

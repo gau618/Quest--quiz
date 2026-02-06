@@ -158,18 +158,36 @@ export const leaderboardService = {
 
   /**
    * Clears relevant leaderboard caches. Call this after a user's score changes.
-   * IMPORTANT: In production with a very large number of keys, `KEYS` can block Redis.
-   * A safer approach would be to use SCAN or to have a more predictable key naming scheme
-   * for targeted deletion. For most applications, this is acceptable.
+   * Uses SCAN instead of KEYS to prevent blocking Redis in production.
    */
   async clearUserCache(userId: string) {
     try {
       const pattern = `leaderboard:friends:${userId}:*`;
-      const keys = await redis.keys(pattern);
-      if (keys.length > 0) {
-        await redis.del(keys);
+      let cursor = '0';
+      let deletedCount = 0;
+      let iterations = 0;
+      const MAX_ITERATIONS = 1000; // Prevent infinite loop - max 100k keys (1000 * 100)
+      
+      do {
+        const result = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+        cursor = result[0];
+        const keys = result[1];
+        
+        if (keys.length > 0) {
+          await redis.del(...keys);
+          deletedCount += keys.length;
+        }
+        
+        iterations++;
+        if (iterations >= MAX_ITERATIONS) {
+          console.warn(`[LeaderboardService] Hit max iterations (${MAX_ITERATIONS}) clearing cache for user ${userId}`);
+          break;
+        }
+      } while (cursor !== '0');
+      
+      if (deletedCount > 0) {
         console.log(
-          `[LeaderboardService] Cleared friends leaderboard cache for user ${userId}.`
+          `[LeaderboardService] Cleared ${deletedCount} friends leaderboard cache keys for user ${userId}.`
         );
       }
     } catch (error) {
@@ -182,15 +200,36 @@ export const leaderboardService = {
 
   /**
    * Clears all global leaderboard caches.
+   * Uses SCAN instead of KEYS to prevent blocking Redis in production.
    */
   async clearGlobalLeaderboardCache() {
     try {
       const pattern = `leaderboard:global:*`;
-      const keys = await redis.keys(pattern);
-      if (keys.length > 0) {
-        await redis.del(keys);
+      let cursor = '0';
+      let deletedCount = 0;
+      let iterations = 0;
+      const MAX_ITERATIONS = 1000; // Prevent infinite loop - max 100k keys (1000 * 100)
+      
+      do {
+        const result = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+        cursor = result[0];
+        const keys = result[1];
+        
+        if (keys.length > 0) {
+          await redis.del(...keys);
+          deletedCount += keys.length;
+        }
+        
+        iterations++;
+        if (iterations >= MAX_ITERATIONS) {
+          console.warn(`[LeaderboardService] Hit max iterations (${MAX_ITERATIONS}) clearing global cache`);
+          break;
+        }
+      } while (cursor !== '0');
+      
+      if (deletedCount > 0) {
         console.log(
-          `[LeaderboardService] Cleared all global leaderboard caches.`
+          `[LeaderboardService] Cleared ${deletedCount} global leaderboard cache keys.`
         );
       }
     } catch (error) {

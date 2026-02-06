@@ -63,7 +63,7 @@ class OnboardingService {
           break;
       }
 
-      const currentState = (userProfile.onboardingState as OnboardingState) || {
+      const currentState = (userProfile.onboardingState as unknown as OnboardingState) || {
         stepsCompleted: {},
       };
       const newStepsCompleted = {
@@ -90,7 +90,7 @@ class OnboardingService {
 
     return {
       success: true,
-      onboardingState: updatedProfile.onboardingState as OnboardingState,
+      onboardingState: updatedProfile.onboardingState as unknown as OnboardingState,
     };
   }
 

@@ -8,9 +8,11 @@ export const POST = withAuth(["USER"], async (req: NextRequest, { user }) => {
   try {
     const { receiverId } = await req.json();
     console.log(receiverId)
-    if (!receiverId) {
+    
+    // Strict validation for receiverId
+    if (!receiverId || typeof receiverId !== 'string' || receiverId.length === 0 || receiverId.length > 100) {
       return NextResponse.json(
-        { error: "receiverId is required." },
+        { error: "Invalid receiverId. Must be a string between 1 and 100 characters." },
         { status: 400 }
       );
     }

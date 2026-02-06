@@ -67,7 +67,7 @@ export function AddMemberModal({ roomId, onClose }: AddMemberModalProps) {
     // Emit the event to the server. The server will handle security and broadcasting.
     socket.emit("chat:add_member", {
       roomId: roomId,
-      userId: selectedUser.userId, // The UserProfile ID of the user to add
+      userId: selectedUser.id, // The UserProfile ID of the user to add
     });
     
     // The modal can be closed immediately. The UI will update via a separate broadcast event.

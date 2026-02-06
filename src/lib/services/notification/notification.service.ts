@@ -12,6 +12,75 @@ interface IpcPayload {
   payload: any; // The data to send with the event
 }
 
+// Whitelist of allowed events (must match socket-server.ts)
+const ALLOWED_EVENTS = new Set([
+    'game:started',
+    'game:finished',
+    'game:error', 
+    'question:new',
+    'answer:feedback',
+    'score:update',
+    'participant:finished',
+    'lobby:update',
+    'lobby:countdown_started',
+    'lobby:countdown_cancelled',
+    'lobby:player_joined',
+    'lobby:player_left',
+    'chat:receive_message',
+    'chat:typing_indicator',
+    'chat:stop_typing_indicator',
+    'chat:member_added',
+    'chat:member_removed',
+    'chat:you_were_added',
+    'chat:group_deleted',
+    'chat:group_updated',
+    'matchmaking:matched',
+    'practice:started',
+    'practice:finished',
+    'practice:error',
+    'time_attack:started',
+    'time_attack:finished',
+    'time_attack:score_update',
+    'time_attack:error',
+    'group_game:started',
+    'group_game:score_update',
+    // Quick Duel
+    'match:found',
+    // Fastest Finger
+    'ff:match_found',
+    'ff:new_question',
+    'ff:player_answered',
+    'ff:point_awarded',
+    'ff:question_timeout',
+    'ff:game_end',
+    // Friends
+    'friend_request:new',
+    'friend_request:accepted',
+    'friend:new',
+    'friend:removed',
+]);
+
+/**
+ * Validates and sanitizes event data before publishing to Redis
+ */
+function validateAndSanitize(event: string, payload: any): any {
+  // Check if event is whitelisted
+  if (!ALLOWED_EVENTS.has(event)) {
+    throw new Error(`[Notification Service] Blocked non-whitelisted event: ${event}`);
+  }
+  
+  // Sanitize payload - remove dangerous properties
+  if (!payload) return null;
+  
+  return JSON.parse(JSON.stringify(payload, (key, value) => {
+    // Prevent prototype pollution
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return undefined;
+    }
+    return value;
+  }));
+}
+
 export const notificationService = {
   /**
    * Publishes an event to a specific user or list of users via Redis.
@@ -21,10 +90,15 @@ export const notificationService = {
    * @param payload - The data to send.
    */
 sendToUsers: (userIds: string | string[], event: string, payload: any) => {
-    const ids = Array.isArray(userIds) ? userIds : [userIds];
-    const message: IpcPayload = { target: 'user', ids, event, payload };
-    redisPublisher.publish(IPC_CHANNEL, JSON.stringify(message));
-    console.log(`[Notification Service] Published '${event}' to users: ${ids.join(', ')}`);
+    try {
+      const ids = Array.isArray(userIds) ? userIds : [userIds];
+      const sanitizedPayload = validateAndSanitize(event, payload);
+      const message: IpcPayload = { target: 'user', ids, event, payload: sanitizedPayload };
+      redisPublisher.publish(IPC_CHANNEL, JSON.stringify(message));
+      console.log(`[Notification Service] Published '${event}' to users: ${ids.join(', ')}`);
+    } catch (error) {
+      console.error(`[Notification Service] Failed to publish event:`, error);
+    }
   },
 
   /**
@@ -46,9 +120,14 @@ sendToUsers: (userIds: string | string[], event: string, payload: any) => {
    * @param payload - The data to send.
    */
   sendToRoom: (roomId: string, event: string, payload: any) => {
-    const message: IpcPayload = { target: 'room', ids: [roomId], event, payload };
-    redisPublisher.publish(IPC_CHANNEL, JSON.stringify(message));
-    console.log(`[Notification Service] Published '${event}' to room: ${roomId}`);
+    try {
+      const sanitizedPayload = validateAndSanitize(event, payload);
+      const message: IpcPayload = { target: 'room', ids: [roomId], event, payload: sanitizedPayload };
+      redisPublisher.publish(IPC_CHANNEL, JSON.stringify(message));
+      console.log(`[Notification Service] Published '${event}' to room: ${roomId}`);
+    } catch (error) {
+      console.error(`[Notification Service] Failed to publish event:`, error);
+    }
   },
 
   /**
@@ -58,9 +137,14 @@ sendToUsers: (userIds: string | string[], event: string, payload: any) => {
    * @param payload - The data to send.
    */
   sendToParticipant: (participantIds: string | string[], event: string, payload: any) => {
-    const ids = Array.isArray(participantIds) ? participantIds : [participantIds];
-    const message: IpcPayload = { target: 'participant', ids, event, payload };
-    redisPublisher.publish(IPC_CHANNEL, JSON.stringify(message));
-    console.log(`[Notification Service] Published '${event}' to participants: ${ids.join(', ')}`);
+    try {
+      const ids = Array.isArray(participantIds) ? participantIds : [participantIds];
+      const sanitizedPayload = validateAndSanitize(event, payload);
+      const message: IpcPayload = { target: 'participant', ids, event, payload: sanitizedPayload };
+      redisPublisher.publish(IPC_CHANNEL, JSON.stringify(message));
+      console.log(`[Notification Service] Published '${event}' to participants: ${ids.join(', ')}`);
+    } catch (error) {
+      console.error(`[Notification Service] Failed to publish event:`, error);
+    }
   },
 };

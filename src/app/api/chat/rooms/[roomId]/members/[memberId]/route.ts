@@ -10,6 +10,16 @@ interface RouteContext {
 export const DELETE = withAuth(['USER'], async (_req: NextRequest, { user, params }: { user: any } & RouteContext) => {
   try {
     const { roomId, memberId } = await params;
+    
+    // Validate roomId and memberId
+    if (!roomId || typeof roomId !== 'string' || roomId.length === 0 || roomId.length > 100) {
+      return NextResponse.json({ error: "Invalid roomId." }, { status: 400 });
+    }
+    
+    if (!memberId || typeof memberId !== 'string' || memberId.length === 0 || memberId.length > 100) {
+      return NextResponse.json({ error: "Invalid memberId." }, { status: 400 });
+    }
+    
     await chatService.removeMemberFromGroup(user.id, roomId, memberId);
     return NextResponse.json({ message: 'Member removed successfully.' });
   } catch (error: any) {

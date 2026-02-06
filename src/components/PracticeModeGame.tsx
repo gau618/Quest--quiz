@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { socket } from "@/lib/socket"; // Use shared socket instance
 import { Difficulty } from "@prisma/client";
+import AuthService from "@/lib/services/auth.service";
 
 // --- TYPE DEFINITIONS ---
 type PracticeStatus = "setup" | "playing" | "feedback" | "finished";
@@ -148,7 +149,13 @@ export const PracticeModeGame = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch("/api/practice/categories");
+        const token = AuthService.getToken();
+        const headers: HeadersInit = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`; // Use Bearer prefix
+        }
+        
+        const response = await fetch("/api/practice/categories", { headers });
         if (!response.ok) throw new Error("Failed to fetch categories");
         const data: Category[] = await response.json();
         setAvailableCategories(data);

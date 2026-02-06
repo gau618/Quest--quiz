@@ -11,6 +11,11 @@ export const GET = withAuth(['USER'], async (_req: NextRequest, { user, params }
   try {
     const { roomId } = await params;
     
+    // Validate roomId
+    if (!roomId || typeof roomId !== 'string' || roomId.length === 0 || roomId.length > 100) {
+      return NextResponse.json({ error: "Invalid roomId." }, { status: 400 });
+    }
+    
     // Check if user is room admin
     const isAdmin = await prisma.chatRoomMember.findUnique({
       where: {
@@ -37,6 +42,12 @@ export const GET = withAuth(['USER'], async (_req: NextRequest, { user, params }
 export const POST = withAuth(['USER'], async (_req: NextRequest, { user, params }: { user: any } & RouteContext) => {
   try {
     const { roomId } = await params;
+    
+    // Validate roomId
+    if (!roomId || typeof roomId !== 'string' || roomId.length === 0 || roomId.length > 100) {
+      return NextResponse.json({ error: "Invalid roomId." }, { status: 400 });
+    }
+    
     const invite = await inviteService.generateInviteCode(roomId, user.id);
     return NextResponse.json(invite);
   } catch (error: any) {

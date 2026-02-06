@@ -23,14 +23,12 @@ export const processOnboardingBonus = async (job: Job) => {
       // Ensure the "Welcome Aboard!" achievement exists, create if not
       const welcomeAchievement = await tx.achievement.upsert({
         where: { title: ACHIEVEMENT_TITLE },
-        update: {}, // No updates if it exists
+        update: {},
         create: {
           title: ACHIEVEMENT_TITLE,
           description: "Completed the initial onboarding process.",
-          xp: XP_BONUS,
-          // --- FIX: Provide a concrete string value for 'category' ---
-          // You must define what category this achievement belongs to.
-          category: "Onboarding" // <-- Replace "Onboarding" with your desired category string
+          rewardXp: XP_BONUS,
+          category: "Onboarding",
         },
       });
       console.log(`[Worker][Onboarding] Ensured existence of achievement: "${ACHIEVEMENT_TITLE}".`);

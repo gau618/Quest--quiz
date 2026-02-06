@@ -24,7 +24,9 @@ export const chatService = {
    */
  async createGroupChatRoom(creatorId: string, name: string, memberIds: string[]) {
     if (!name.trim()) throw new Error("Group chat name cannot be empty.");
+    if (name.length > 100) throw new Error("Group name is too long. Maximum 100 characters.");
     if (memberIds.length === 0) throw new Error("A group must have at least one other member.");
+    if (memberIds.length > 50) throw new Error("Too many members. Maximum 50 members per group.");
     
     const allMemberIds = Array.from(new Set([creatorId, ...memberIds]));
 
@@ -92,6 +94,7 @@ export const chatService = {
    */
   async sendMessage(senderId: string, chatRoomId: string, content: string) {
     if (!content.trim()) throw new Error("Message content cannot be empty.");
+    if (content.length > 2000) throw new Error("Message is too long. Maximum 2000 characters.");
     
     const member = await prisma.chatRoomMember.findUnique({ where: { chatRoomId_userId: { chatRoomId, userId: senderId } } });
     if (!member) throw new Error("You are not a member of this chat room.");

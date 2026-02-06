@@ -180,7 +180,16 @@ export const QuickDuelGame = () => {
         setSessionId(data.sessionId);
         setPlayersInGame(data.players);
         setTimer(data.duration * 60);
-        setScores(data.players.reduce((acc, p) => ({ ...acc, [p.participantId]: 0 }), {}));
+        // Use Object.create(null) to prevent prototype pollution
+        const initialScores = Object.create(null);
+        if (Array.isArray(data.players)) {
+          data.players.forEach((p) => {
+            if (p && typeof p.participantId === 'string') {
+              initialScores[p.participantId] = 0;
+            }
+          });
+        }
+        setScores(initialScores);
         socket.emit("game:register-participant", { participantId: myInfo.participantId, sessionId: data.sessionId });
         data.players.forEach((p) => {
           socket.emit("quickduel:request_first_question", { sessionId: data.sessionId, participantId: p.participantId });

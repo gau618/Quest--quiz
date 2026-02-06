@@ -3,9 +3,10 @@ import { Job } from "bullmq";
 import { createWorker } from "@/lib/queue/config";
 import { lobbyService } from "@/lib/lobby/lobby.service";
 
-// The job data should have at least: { roomCode: string }
+// The job data should have the session/lobby ID
 interface LobbyCountdownJobData {
   roomCode: string;
+  sessionId: string;
 }
 
 createWorker<LobbyCountdownJobData>(

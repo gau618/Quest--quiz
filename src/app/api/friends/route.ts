@@ -20,9 +20,11 @@ export const GET = withAuth(["USER"], async (_req: NextRequest, { user }) => {
 export const DELETE = withAuth(["USER"], async (req: NextRequest, { user }) => {
   try {
     const { friendId } = await req.json();
-    if (!friendId) {
+    
+    // Strict validation for friendId
+    if (!friendId || typeof friendId !== 'string' || friendId.length === 0 || friendId.length > 100) {
       return NextResponse.json(
-        { error: "friendId is required." },
+        { error: "Invalid friendId. Must be a string between 1 and 100 characters." },
         { status: 400 }
       );
     }

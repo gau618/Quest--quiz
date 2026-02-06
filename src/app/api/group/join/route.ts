@@ -7,9 +7,11 @@ export const POST = withAuth(
   async (req: NextRequest, { user }) => {
     try {
       const { roomCode } = await req.json();
-      if (!roomCode) {
+      
+      // Strict validation for roomCode
+      if (!roomCode || typeof roomCode !== 'string' || roomCode.length === 0 || roomCode.length > 50) {
         return NextResponse.json(
-          { error: "Missing roomCode" },
+          { error: "Invalid roomCode. Must be a string between 1 and 50 characters." },
           { status: 400 }
         );
       }

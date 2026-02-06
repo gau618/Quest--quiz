@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth/withAuth';
 import { chatService } from '@/lib/services/chat/chat.service';
 import { ChatRoomType } from '@prisma/client';
+import { checkRateLimit, createRateLimitResponse } from '@/lib/middleware/rateLimit';
 
 export const GET = withAuth(['USER'], async (_req, { user }) => {
   try {
@@ -17,14 +18,48 @@ export const GET = withAuth(['USER'], async (_req, { user }) => {
 
 export const POST = withAuth(['USER'], async (req, { user }) => {
   try {
+    // Rate limit: 10 chat room creations per hour per user
+    const rateLimitResult = checkRateLimit(`user:${user.id}:create_room`, {
+      maxRequests: 10,
+      windowMs: 3600000, // 1 hour
+    });
+    
+    if (rateLimitResult.limited) {
+      console.warn(`[API][Chat] Rate limit exceeded for user ${user.id}`);
+      return createRateLimitResponse(rateLimitResult.resetTime);
+    }
+
     const { type, friendId, groupName, memberIds } = await req.json();
 
-    if (type === 'DM' && friendId) {
+    // Validate type
+    if (!type || !['DM', 'GROUP'].includes(type)) {
+      return NextResponse.json({ error: 'Invalid type. Must be DM or GROUP.' }, { status: 400 });
+    }
+
+    if (type === 'DM') {
+      if (!friendId || typeof friendId !== 'string' || friendId.length === 0 || friendId.length > 100) {
+        return NextResponse.json({ error: 'Invalid friendId.' }, { status: 400 });
+      }
       const room = await chatService.getOrCreateDMRoom(user.id, friendId);
       return NextResponse.json({ room });
     }
     
-    if (type === 'GROUP' && groupName && Array.isArray(memberIds)) {
+    if (type === 'GROUP') {
+      // Validate group name
+      if (!groupName || typeof groupName !== 'string' || groupName.length === 0 || groupName.length > 100) {
+        return NextResponse.json({ error: 'Group name must be between 1 and 100 characters.' }, { status: 400 });
+      }
+      
+      // Validate memberIds array
+      if (!Array.isArray(memberIds) || memberIds.length === 0 || memberIds.length > 50) {
+        return NextResponse.json({ error: 'memberIds must be an array with 1-50 members.' }, { status: 400 });
+      }
+      
+      // Validate all memberIds are strings
+      if (!memberIds.every(id => typeof id === 'string' && id.length > 0 && id.length <= 100)) {
+        return NextResponse.json({ error: 'All memberIds must be valid strings.' }, { status: 400 });
+      }
+      
       const room = await chatService.createGroupChatRoom(user.id, groupName, memberIds);
       return NextResponse.json({ room });
     }

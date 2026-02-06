@@ -10,6 +10,12 @@ interface RouteContext {
 export const DELETE = withAuth(['USER'], async (_req: NextRequest, { user, params }: { user: any } & RouteContext) => {
   try {
     const { roomId } = await params;
+    
+    // Validate roomId
+    if (!roomId || typeof roomId !== 'string' || roomId.length === 0 || roomId.length > 100) {
+      return NextResponse.json({ error: "Invalid roomId." }, { status: 400 });
+    }
+    
     await chatService.deleteGroupAsAdmin(user.id, roomId);
     return NextResponse.json({ message: 'Group deleted successfully.' }, { status: 200 });
   } catch (error: any) {
@@ -22,6 +28,22 @@ export const PATCH = withAuth(['USER'], async (req: NextRequest, { user, params 
   try {
     const { roomId } = await params;
     const body = await req.json();
+    
+    // Validate roomId
+    if (!roomId || typeof roomId !== 'string' || roomId.length === 0 || roomId.length > 100) {
+      return NextResponse.json({ error: "Invalid roomId." }, { status: 400 });
+    }
+    
+    // Validate body has valid structure
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+    
+    // Validate groupName if provided
+    if (body.groupName && (typeof body.groupName !== 'string' || body.groupName.length === 0 || body.groupName.length > 100)) {
+      return NextResponse.json({ error: "Group name must be between 1 and 100 characters." }, { status: 400 });
+    }
+    
     const updatedRoom = await chatService.updateGroupDetails(user.id, roomId, body);
     return NextResponse.json({ updatedRoom });
   } catch (error: any) {

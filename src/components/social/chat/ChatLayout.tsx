@@ -146,7 +146,7 @@ export function ChatLayout() {
       );
       // If the currently selected room is the one that was updated, refresh its state
       if (selectedRoom?.id === data.roomId) {
-        setSelectedRoom((prevSelectedRoom) => {
+        setSelectedRoom((prevSelectedRoom: any) => {
           if (!prevSelectedRoom) return null;
           const memberExists = (prevSelectedRoom.members || []).some(
             (m: any) => m.userId === data.newMember.userId

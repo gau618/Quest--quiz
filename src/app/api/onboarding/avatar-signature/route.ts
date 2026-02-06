@@ -12,7 +12,8 @@ const getAvatarUploadSignature = async (_req: NextRequest, { user }: { user: Aut
       signature,
       folder,
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-      apiKey: process.env.CLOUDINARY_API_KEY,
+      // apiKey removed - client will get it from NEXT_PUBLIC_CLOUDINARY_API_KEY if needed
+      // Never expose server-side API keys in responses
     });
   } catch (error) {
     return NextResponse.json({ message: 'Could not prepare file upload.' }, { status: 500 });

@@ -12,8 +12,14 @@ export const GET = withAuth(['USER'], async (request: NextRequest, { user }: { u
     const excludeRoomId = searchParams.get('excludeRoomId');
     console.log(`Search query: ${query}, Exclude Room ID: ${excludeRoomId}`);
 
-    if (!query) {
-      return NextResponse.json({ error: "Search query is required." }, { status: 400 });
+    // Validate query parameter
+    if (!query || typeof query !== 'string' || query.length === 0 || query.length > 100) {
+      return NextResponse.json({ error: "Search query must be between 1 and 100 characters." }, { status: 400 });
+    }
+    
+    // Validate excludeRoomId if provided
+    if (excludeRoomId && (typeof excludeRoomId !== 'string' || excludeRoomId.length > 100)) {
+      return NextResponse.json({ error: "Invalid excludeRoomId parameter." }, { status: 400 });
     }
 
     let membersToExclude: string[] = [];

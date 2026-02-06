@@ -11,6 +11,15 @@ export const PATCH = withAuth(
     { user, params }: { user: any; params: { requestId: string } }
   ) => {
     const { requestId } = params;
+    
+    // Validate requestId from URL params
+    if (!requestId || typeof requestId !== 'string' || requestId.length === 0 || requestId.length > 100) {
+      return NextResponse.json(
+        { error: "Invalid requestId." },
+        { status: 400 }
+      );
+    }
+    
     try {
       const { action } = await req.json();
       if (!action || !["accept", "decline"].includes(action)) {

@@ -16,9 +16,9 @@ class QuestionManager {
    * @param count (Optional) The exact number of questions to fetch. Defaults to QUESTIONS_PER_BATCH.
    * @returns A promise that resolves to an array of Question objects.
    */
-  public async fetchQuestions(difficulty: Difficulty, categories?: string[], count?: number): Promise<Question[]> {
+  public async fetchQuestions(targetDifficulty: Difficulty, categories?: string[], count?: number): Promise<Question[]> {
     // 1. Build the WHERE clause dynamically. It always includes difficulty.
-    const whereClause: any = { difficulty };
+    const whereClause: any = { difficulty: targetDifficulty };
 
     // 2. Add the category filter ONLY if the 'categories' array is provided and not empty.
     // This is the key to ensuring backward compatibility.
@@ -71,14 +71,20 @@ class QuestionManager {
             console.error(`Data integrity issue: Question with ID ${q.id} has no correct option.`);
             return {
                 ...q,
+                difficulty: targetDifficulty,
                 correctOptionId: '',
+                explanation: q.explanation ?? undefined,
+                learningTip: q.learningTip ?? undefined,
                 options: q.options.map(({ isCorrect, ...rest }) => rest),
             };
         }
 
         return {
             ...q,
+            difficulty: targetDifficulty,
             correctOptionId: correctOption.id,
+            explanation: q.explanation ?? undefined,
+            learningTip: q.learningTip ?? undefined,
             options: q.options.map(({ isCorrect, ...rest }) => rest),
         }
     });

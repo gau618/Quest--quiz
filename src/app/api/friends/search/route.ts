@@ -7,9 +7,10 @@ export const GET = withAuth(["USER"], async (req: NextRequest, { user }) => {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("query");
 
-  if (!query) {
+  // Validate query parameter
+  if (!query || typeof query !== 'string' || query.length === 0 || query.length > 100) {
     return NextResponse.json(
-      { error: "Query parameter is required." },
+      { error: "Search query must be between 1 and 100 characters." },
       { status: 400 }
     );
   }

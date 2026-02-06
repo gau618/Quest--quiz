@@ -2,12 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAuth, AuthUser } from "@/lib/auth/withAuth";
 import { gameService } from "@/lib/services/game/game.service";
 import { Difficulty } from "@prisma/client";
+import { checkRateLimit, createRateLimitResponse } from '@/lib/middleware/rateLimit';
 
 async function POST_HANDLER(
   req: NextRequest,
   { user }: { user: AuthUser }
 ) {
   try {
+    // Rate limit: 20 practice games per hour per user
+    const rateLimitResult = checkRateLimit(`user:${user.id}:practice`, {
+      maxRequests: 20,
+      windowMs: 3600000, // 1 hour
+    });
+    
+    if (rateLimitResult.limited) {
+      console.warn(`[API][Practice] Rate limit exceeded for user ${user.id}`);
+      return createRateLimitResponse(rateLimitResult.resetTime);
+    }
+
     const body = await req.json();
     const { difficulty, categories, numQuestions } = body;
 
@@ -22,6 +34,22 @@ async function POST_HANDLER(
     if (!Array.isArray(categories)) {
       return NextResponse.json(
         { message: "Categories must be provided as an array." },
+        { status: 400 }
+      );
+    }
+    
+    // Prevent resource exhaustion - limit categories array size
+    if (categories.length === 0 || categories.length > 20) {
+      return NextResponse.json(
+        { message: "Categories array must contain 1-20 items." },
+        { status: 400 }
+      );
+    }
+    
+    // Validate all category IDs are valid strings
+    if (!categories.every(cat => typeof cat === 'string' && cat.length > 0 && cat.length <= 100)) {
+      return NextResponse.json(
+        { message: "All category IDs must be valid strings." },
         { status: 400 }
       );
     }

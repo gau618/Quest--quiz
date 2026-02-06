@@ -16,7 +16,7 @@ class Scheduler {
 
     // First, remove any existing repeatable job with the same key to ensure consistency
     // This makes sure that on every server start, we have a clean schedule.
-    await queueService.removeRepeatableJob(queueName, { pattern: jobId, every: repeatOptions.every });
+    await queueService.removeRepeatableJob(queueName, { every: repeatOptions.every });
     console.log(`[Scheduler] Cleared any existing matchmaking timeout job config.`);
 
     // Now, add the single, definitive repeatable job

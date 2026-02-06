@@ -2,17 +2,8 @@
 
 import prisma from '@/lib/prisma/client'; // Your shared Prisma client instance
 import { FriendRequestStatus } from '@prisma/client';
+import { notificationService } from '@/lib/services/notification/notification.service';
 
-// This is a placeholder for your real-time notification service.
-// In a later step, we'll replace this with a real implementation that uses Socket.IO.
-const notificationService = {
-  sendNotification: async (userId: string, type: string, payload: any) => {
-    console.log(`[Notification Stub] To ${userId}: ${type}`, payload);
-    // In a real implementation, this would emit a socket event via Redis Pub/Sub
-    // to ensure it reaches the correct user on any server instance.
-    // e.g., redis.publish('socket-notifications', JSON.stringify({ userId, type, payload }));
-  },
-};
 
 export const friendsService = {
   /**
@@ -102,12 +93,16 @@ async sendFriendRequest(requesterId: string, receiverId: string) {
     },
   });
 
-  await notificationService.sendNotification(receiverId, 'FRIEND_REQUEST_RECEIVED', {
-    from: {
-      userId: requesterId,
-    },
-    requestId: newRequest.id,
-  });
+  if (requesterProfile) {
+    await notificationService.sendToUsers(receiverId, 'friend_request:new', {
+      id: newRequest.id,
+      requester: {
+        userId: requesterId,
+        username: requesterProfile.username,
+        avatarUrl: requesterProfile.avatarUrl,
+      },
+    });
+  }
 
   return newRequest;
 }
@@ -144,9 +139,32 @@ async sendFriendRequest(requesterId: string, receiverId: string) {
           data: { user1Id, user2Id },
         });
 
-        await notificationService.sendNotification(request.requesterId, 'FRIEND_REQUEST_ACCEPTED', {
-          from: { userId: currentUserId },
-        });
+        // Fetch profiles and send notifications
+        const requesterProfile = await tx.userProfile.findUnique({ where: { userId: request.requesterId } });
+        const receiverProfile = await tx.userProfile.findUnique({ where: { userId: request.receiverId } });
+
+        if (requesterProfile && receiverProfile) {
+          // Notify requester (they know they sent it, but now it's accepted)
+          await notificationService.sendToUsers(request.requesterId, 'friend:new', {
+            newFriend: {
+              userId: receiverProfile.userId,
+              username: receiverProfile.username,
+              avatarUrl: receiverProfile.avatarUrl,
+            }
+          });
+          await notificationService.sendToUsers(request.requesterId, 'friend_request:accepted', {
+             from: { userId: currentUserId }
+          })
+
+          // Notify receiver (current user - to update their list in other tabs)
+          await notificationService.sendToUsers(request.receiverId, 'friend:new', {
+            newFriend: {
+              userId: requesterProfile.userId,
+              username: requesterProfile.username,
+              avatarUrl: requesterProfile.avatarUrl,
+            }
+          });
+        }
 
         return updatedRequest;
       });
@@ -155,10 +173,8 @@ async sendFriendRequest(requesterId: string, receiverId: string) {
         where: { id: requestId },
         data: { status: FriendRequestStatus.DECLINED },
       });
-
-      await notificationService.sendNotification(request.requesterId, 'FRIEND_REQUEST_DECLINED', {
-        from: { userId: currentUserId },
-      });
+      
+      // No notification for decline to comply with whitelist
 
       return updatedRequest;
     }
@@ -223,8 +239,13 @@ async sendFriendRequest(requesterId: string, receiverId: string) {
         data: { status: FriendRequestStatus.DECLINED },
       });
 
-      await notificationService.sendNotification(friendIdToRemove, 'FRIEND_REMOVED', {
-        by: { userId: currentUserId },
+      await notificationService.sendToUsers(friendIdToRemove, 'friend:removed', {
+        removedFriendId: currentUserId
+      });
+      
+      // Also notify the remover so their UI syncs if they used a different device
+       await notificationService.sendToUsers(currentUserId, 'friend:removed', {
+        removedFriendId: friendIdToRemove
       });
     });
   },

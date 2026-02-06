@@ -5,6 +5,8 @@ import { createWorker } from "@/lib/queue/config";
 
 // Create a worker for the 'matchmaking-timeout-jobs' queue
 // This worker processes a repeating job to check for matchmaking timeouts
+// Note: The repeatable scheduling is handled by the Scheduler class (src/lib/queue/scheduler.ts),
+// not by worker options. The worker just processes jobs from the queue.
 const worker = createWorker(
   "matchmaking-timeout-jobs",
   async () => {
@@ -26,12 +28,7 @@ const worker = createWorker(
     }
   },
   {
-    repeat: {
-      every: 5000, // Check every 5 seconds for timed-out players
-    },
-    // Ensure only one instance of this repeatable job is scheduled
-    // by providing a jobId that will be reused.
-    jobId: "singleton-matchmaking-timeout-check",
+    concurrency: 1,
   }
 );
 

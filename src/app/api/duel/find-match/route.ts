@@ -4,6 +4,7 @@ import { queueService } from '@/lib/queue/config';
 import prisma from '@/lib/prisma/client';
 import { GameMode } from '@prisma/client';
 import { withAuth, AuthUser } from '@/lib/auth/withAuth'; // Adjust path as per your project structure
+import { checkRateLimit, createRateLimitResponse } from '@/lib/middleware/rateLimit';
 
 // Define the allowed roles for this API. For example, all authenticated users.
 const ALLOWED_ROLES = ['USER', 'ADMIN'];
@@ -13,10 +14,22 @@ export const POST = withAuth(ALLOWED_ROLES, async (req: NextRequest, { user }: {
   try {
     const userId = user.id; // User ID obtained from validated JWT
 
+    // Rate limit: 10 matchmaking attempts per minute per user
+    const rateLimitResult = checkRateLimit(`user:${userId}:matchmaking`, {
+      maxRequests: 10,
+      windowMs: 60000,
+    });
+    
+    if (rateLimitResult.limited) {
+      console.warn(`[API][QuickDuel] Rate limit exceeded for user ${userId}`);
+      return createRateLimitResponse(rateLimitResult.resetTime);
+    }
+
     const { duration } = await req.json();
     console.log(`[API][QuickDuel] Requested duration: ${duration} minutes`);
     
-    if (!duration || ![1, 2, 5].includes(duration)) {
+    // Strict validation: must be number and exact value
+    if (typeof duration !== 'number' || ![1, 2, 5].includes(duration)) {
       console.warn(`[API][QuickDuel] Invalid duration provided: ${duration}`);
       return NextResponse.json({ error: 'Invalid duration. Must be 1, 2, or 5 minutes' }, { status: 400 });
     }

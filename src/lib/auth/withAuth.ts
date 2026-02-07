@@ -65,7 +65,13 @@ export function withAuth(allowedRoles: string[], handler: AuthenticatedRouteHand
       });
     }
 
-    const token = req.cookies.get('accessToken')?.value;
+    let token = req.cookies.get('accessToken')?.value;
+    
+    // Fallback to Authorization header if no cookie found
+    if (!token) {
+      token = req.headers.get('authorization') ?? undefined;
+    }
+
     if (!token) {
       return new NextResponse(
         JSON.stringify({ message: 'Token required.' }),

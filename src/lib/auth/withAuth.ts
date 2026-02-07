@@ -65,7 +65,7 @@ export function withAuth(allowedRoles: string[], handler: AuthenticatedRouteHand
       });
     }
 
-    const token = req.headers.get('authorization');
+    const token = req.cookies.get('accessToken')?.value;
     if (!token) {
       return new NextResponse(
         JSON.stringify({ message: 'Token required.' }),

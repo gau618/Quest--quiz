@@ -5,13 +5,13 @@ const envOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
 let ALLOWED_ORIGINS = [...envOrigins];
 
 // Production: Filter out localhost to enforce security
-if (process.env.NODE_ENV === 'production') {
-  ALLOWED_ORIGINS = ALLOWED_ORIGINS.filter(origin => !origin.includes('localhost'));
-} else {
+// if (process.env.NODE_ENV === 'production') {
+//   ALLOWED_ORIGINS = ALLOWED_ORIGINS.filter(origin => !origin.includes('localhost'));
+// } else {
   // Development: Ensure localhost is available
   if (!ALLOWED_ORIGINS.includes('http://localhost:3000')) ALLOWED_ORIGINS.push('http://localhost:3000');
   if (!ALLOWED_ORIGINS.includes('http://localhost:4000')) ALLOWED_ORIGINS.push('http://localhost:4000');
-}
+// }
 
 export function middleware(request: NextRequest) {
   const origin = request.headers.get('origin');

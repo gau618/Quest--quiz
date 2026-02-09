@@ -29,14 +29,19 @@ function getCorsHeaders(origin: string | null): HeadersInit {
   let allowedOrigins = [...envOrigins];
 
   // 2. Production Safety: Remove localhost
-  if (process.env.NODE_ENV === 'production') {
-    allowedOrigins = allowedOrigins.filter(o => !o.includes('localhost'));
-  } else {
-    // 3. Dev Convenience: Add localhost if missing
-    ['http://localhost:3000', 'http://localhost:4000'].forEach(url => {
-        if (!allowedOrigins.includes(url)) allowedOrigins.push(url);
-    });
-  }
+  // if (process.env.NODE_ENV === 'production') {
+  //   allowedOrigins = allowedOrigins.filter(o => !o.includes('localhost'));
+  // } else {
+  //   // 3. Dev Convenience: Add localhost if missing
+  //   ['http://localhost:3000', 'http://localhost:4000'].forEach(url => {
+  //       if (!allowedOrigins.includes(url)) allowedOrigins.push(url);
+  //   });
+  // }
+  
+  // Development: Ensure localhost is available
+  ['http://localhost:3000', 'http://localhost:4000'].forEach(url => {
+      if (!allowedOrigins.includes(url)) allowedOrigins.push(url);
+  });
   
   // Clean up
   allowedOrigins = Array.from(new Set(allowedOrigins));

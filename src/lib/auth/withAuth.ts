@@ -24,14 +24,30 @@ type AuthenticatedRouteHandler = (
 
 // Helper: build CORS headers dynamically
 function getCorsHeaders(origin: string | null): HeadersInit {
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['*'];
+  // 1. Load from ENV
+  const envOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+  let allowedOrigins = [...envOrigins];
+
+  // 2. Production Safety: Remove localhost
+  if (process.env.NODE_ENV === 'production') {
+    allowedOrigins = allowedOrigins.filter(o => !o.includes('localhost'));
+  } else {
+    // 3. Dev Convenience: Add localhost if missing
+    ['http://localhost:3000', 'http://localhost:4000'].forEach(url => {
+        if (!allowedOrigins.includes(url)) allowedOrigins.push(url);
+    });
+  }
+  
+  // Clean up
+  allowedOrigins = Array.from(new Set(allowedOrigins));
+
   const isAllowed = allowedOrigins.includes('*') || (origin && allowedOrigins.includes(origin));
   
   return {
-    'Access-Control-Allow-Origin': isAllowed ? (origin || '*') : allowedOrigins[0],
+    'Access-Control-Allow-Origin': isAllowed ? (origin || allowedOrigins[0]) : allowedOrigins[0],
     'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Credentials': allowedOrigins.includes('*') ? 'false' : 'true',
+    'Access-Control-Allow-Credentials': 'true', 
   };
 }
 

@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const ALLOWED_ORIGINS = [
-  'https://www.tradeved.com',
-  'https://dev.tradeved.com'
-];
+const envOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+let ALLOWED_ORIGINS = [...envOrigins];
 
-// Add localhost for development environments only
-if (process.env.NODE_ENV !== 'production') {
-  ALLOWED_ORIGINS.push('http://localhost:3000', 'http://localhost:4000');
+// Production: Filter out localhost to enforce security
+if (process.env.NODE_ENV === 'production') {
+  ALLOWED_ORIGINS = ALLOWED_ORIGINS.filter(origin => !origin.includes('localhost'));
+} else {
+  // Development: Ensure localhost is available
+  if (!ALLOWED_ORIGINS.includes('http://localhost:3000')) ALLOWED_ORIGINS.push('http://localhost:3000');
+  if (!ALLOWED_ORIGINS.includes('http://localhost:4000')) ALLOWED_ORIGINS.push('http://localhost:4000');
 }
 
 export function middleware(request: NextRequest) {
